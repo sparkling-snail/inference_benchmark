@@ -35,9 +35,16 @@ request is admitted, freed when it finishes.
 - [x] Phase 2: single-request KV cache (`src/kv_cache_single.py`).
   Verified against HF's own cached `generate()` — token-for-token
   match on all test prompts via `verify_kv_cache.py`.
-- [ ] Phase 3: batched KV cache. Per-sequence cache slots so requests
-  can join or leave a running batch without restarting everyone else —
-  this is the part that's actually "continuous batching."
+- [x] Phase 3: batched KV cache (`src/kv_cache_batched.py`). Per-sequence
+  cache slots so requests can join or leave a running batch without
+  restarting everyone else — this is the part that's actually
+  "continuous batching." Verified in two checkpoints via
+  `verify_kv_cache_batched.py`: (A) a fixed batch of mixed-length
+  prompts decoded together with correct per-row caching, (B) evict and
+  admit exercised mid-batch, including both padding directions admit
+  needs (new row shorter than the batch, new row longer than the
+  batch). Every request checked token-for-token against Phase 2's
+  single-sequence reference.
 - [ ] Phase 4: scheduler loop. Wrap Phase 3 in something that runs
   continuously against a queue (FCFS to start, can get smarter later).
 - [ ] Phase 5: benchmark against vLLM, SGLang, and TGI. Wanted this to
