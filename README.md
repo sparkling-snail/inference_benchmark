@@ -32,10 +32,9 @@ request is admitted, freed when it finishes.
   the batch is locked once formed — a request that finishes early just
   sits idle waiting for the slowest one in its batch. This is the
   number everything after it has to beat.
-- [ ] Phase 2: single-request KV cache (`src/kv_cache_single.py`).
-  Implemented, not verified yet. Run `verify_kv_cache.py` and confirm
-  it matches HF's own cached `generate()` token for token before
-  trusting it.
+- [x] Phase 2: single-request KV cache (`src/kv_cache_single.py`).
+  Verified against HF's own cached `generate()` — token-for-token
+  match on all test prompts via `verify_kv_cache.py`.
 - [ ] Phase 3: batched KV cache. Per-sequence cache slots so requests
   can join or leave a running batch without restarting everyone else —
   this is the part that's actually "continuous batching."
