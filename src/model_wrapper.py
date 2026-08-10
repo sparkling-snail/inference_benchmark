@@ -15,6 +15,20 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 MODEL_NAME = "gpt2"  # ~124M params, good for fast local iteration
 
 
+def build_position_ids(attention_mask: torch.Tensor) -> torch.Tensor:
+    """
+    Per-row position ids derived from the attention mask, so a left-padded
+    row's real tokens get position 0, 1, 2... starting at its own first
+    real token -- not at column 0 of the padded tensor. Without this,
+    GPT-2's learned position embeddings get misaligned for any row shorter
+    than the batch's longest, since the model's default position ids are
+    a single arange() shared across every row regardless of padding.
+    """
+    position_ids = attention_mask.long().cumsum(-1) - 1
+    position_ids.masked_fill_(attention_mask == 0, 1)  # dummy value; masked out anyway
+    return position_ids
+
+
 class ModelWrapper:
     def __init__(self, model_name: str = MODEL_NAME, device: str | None = None):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -45,7 +59,8 @@ class ModelWrapper:
         """
         input_ids = input_ids.to(self.device)
         attention_mask = attention_mask.to(self.device)
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
+        position_ids = build_position_ids(attention_mask)
+        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, position_ids=position_ids)
         last_token_logits = outputs.logits[:, -1, :]  # (batch, vocab)
         return last_token_logits
 
@@ -65,6 +80,39 @@ class ModelWrapper:
         input_ids = input_ids.to(self.device)
         outputs = self.model(input_ids=input_ids, past_key_values=past_key_values, use_cache=True)
         last_token_logits = outputs.logits[0, -1, :]  # (vocab,) -- batch size 1
+        return last_token_logits, outputs.past_key_values
+
+    @torch.no_grad()
+    def forward_batch_step(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        past_key_values=None,
+    ):
+        """
+        Batched analog of forward_step -- multiple sequences, each with
+        its own growing KV cache slot in the same batched cache object.
+
+        attention_mask always covers the FULL sequence so far, including
+        input_ids: shape (batch, prompt_len) on the first (prefill) call
+        with past_key_values=None, then (batch, total_len_so_far) on
+        every call after that, where input_ids is just the newest token
+        per row, shape (batch, 1).
+
+        Returns (last_token_logits, new_past_key_values).
+        """
+        input_ids = input_ids.to(self.device)
+        attention_mask = attention_mask.to(self.device)
+        full_position_ids = build_position_ids(attention_mask)
+        position_ids = full_position_ids[:, -input_ids.shape[1]:]
+        outputs = self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            use_cache=True,
+        )
+        last_token_logits = outputs.logits[:, -1, :]  # (batch, vocab)
         return last_token_logits, outputs.past_key_values
 
     def greedy_next_token(self, logits_row: torch.Tensor) -> int:
