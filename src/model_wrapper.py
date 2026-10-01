@@ -55,7 +55,7 @@ class ModelWrapper:
         return self.tokenizer.decode(token_ids, skip_special_tokens=True)
 
     @torch.no_grad() # disable gradient calculation for inference
-    def forward_batch(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
+    def forward_batch(self, input_ids: torch.Tensor, attention_mask: torch.Tensor): # phase 1, multiple requests in a batch
         """
         One forward pass over a padded batch.
         Returns logits for the last position of each sequence.
@@ -69,12 +69,13 @@ class ModelWrapper:
         return last_token_logits
 
     @torch.no_grad()
-    def forward_step(self, input_ids: torch.Tensor, past_key_values=None):
+    def forward_step(self, input_ids: torch.Tensor, past_key_values=None): # phase 2, handle one request at a time with kv cache
         """
         One forward pass step, reusing a KV cache across calls.
 
         First call: pass the full prompt (1, prompt_len) with
-        past_key_values=None. Every call after that: pass just the
+        past_key_values=None. 
+        Every call after that: pass just the
         single newest token (1, 1) plus the past_key_values returned
         by the previous call -- the model only recomputes attention
         for that one new position instead of the whole sequence.
@@ -82,7 +83,7 @@ class ModelWrapper:
         Returns (last_token_logits, new_past_key_values).
         """
         input_ids = input_ids.to(self.device)
-        outputs = self.model(input_ids=input_ids, past_key_values=past_key_values, use_cache=True)
+        outputs = self.model(input_ids=input_ids, past_key_values=past_key_values, use_cache=True) 
         last_token_logits = outputs.logits[0, -1, :]  # (vocab,) -- batch size 1
         return last_token_logits, outputs.past_key_values
 
@@ -94,6 +95,10 @@ class ModelWrapper:
         past_key_values=None,
     ):
         """
+        forward_batch's ability to handle multiple requests at once (with padding), 
+        combined with forward_step's memory/caching ability
+        to handle multiple requests in a batch with shared KV cache slots.
+
         Batched analog of forward_step -- multiple sequences, each with
         its own growing KV cache slot in the same batched cache object.
 
@@ -103,17 +108,20 @@ class ModelWrapper:
         every call after that, where input_ids is just the newest token
         per row, shape (batch, 1).
 
+        - full prompt + no cache -> prefill
+        - new token(s) + existing cache -> decode
+
         Returns (last_token_logits, new_past_key_values).
         """
         input_ids = input_ids.to(self.device)
         attention_mask = attention_mask.to(self.device)
         full_position_ids = build_position_ids(attention_mask)
-        positxion_ids = full_position_ids[:, -input_ids.shape[1]:]
+        position_ids = full_position_ids[:, -input_ids.shape[1]:]
         outputs = self.model(
-            input_ids=input_ids,
+            input_ids=input_ids, #input_ids tells the model what tokens to process on this call
             attention_mask=attention_mask,
             position_ids=position_ids,
-            past_key_values=past_key_values,
+            past_key_values=past_key_values, #past_key_values tells the model whether there is already cached history
             use_cache=True,
         )
         last_token_logits = outputs.logits[:, -1, :]  # (batch, vocab)
@@ -121,4 +129,3 @@ class ModelWrapper:
 
     def greedy_next_token(self, logits_row: torch.Tensor) -> int:
         return int(torch.argmax(logits_row).item())
-x
