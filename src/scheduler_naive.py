@@ -28,10 +28,10 @@ def run_naive_batch(model: ModelWrapper, requests: list[Request]) -> list[Reques
     with full-sequence recomputation at every step (no KV cache).
     """
     for req in requests:
-        req.prompt_token_ids = model.encode(req.prompt)
+        req.prompt_token_ids = model.encode(req.prompt) # asks the tokenizer to turn each prompt into numbers.
 
     # sequences we mutate in place as generation proceeds
-    sequences = [list(req.prompt_token_ids) for req in requests]
+    sequences = [list(req.prompt_token_ids) for req in requests] # sequences is just: "the current full input for this request, kept up to date"
     max_steps = max(req.max_new_tokens for req in requests)
 
     for step in range(max_steps):
@@ -49,7 +49,7 @@ def run_naive_batch(model: ModelWrapper, requests: list[Request]) -> list[Reques
         pad_id = model.tokenizer.pad_token_id
 
         input_ids = torch.full((len(active_idx), max_len), pad_id, dtype=torch.long)
-        attention_mask = torch.zeros((len(active_idx), max_len), dtype=torch.long)
+        attention_mask = torch.zeros((len(active_idx), max_len), dtype=torch.long) # attention_mask marks which columns are real tokens (1) vs padding (0), so the model knows to ignore the filler.
         for row, seq in enumerate(active_seqs):
             # left-pad so the "last token" position lines up at index -1
             offset = max_len - len(seq)
