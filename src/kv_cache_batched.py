@@ -182,8 +182,13 @@ def admit(model: ModelWrapper, batch: BatchedKVCache, req: Request) -> None:
     req.record_token(new_token)
 
     target_len = max(batch.seq_len, prompt_len)
-    existing_legacy = batch.past_key_values.to_legacy_cache()
-    new_legacy = new_cache.to_legacy_cache()
+    # DynamicCache.to_legacy_cache()/from_legacy_cache() were removed in
+    # newer transformers releases (the per-layer tensors now live at
+    # cache.layers[i].keys / .values instead) -- this reads/rebuilds the
+    # same (key, value) tuple-per-layer shape those used to produce, so
+    # the merge logic below is otherwise unchanged.
+    existing_legacy = tuple((layer.keys, layer.values) for layer in batch.past_key_values.layers)
+    new_legacy = tuple((layer.keys, layer.values) for layer in new_cache.layers)
 
     if prompt_len < target_len:
         pad = target_len - prompt_len
@@ -202,7 +207,7 @@ def admit(model: ModelWrapper, batch: BatchedKVCache, req: Request) -> None:
         (torch.cat([ek, nk], dim=0), torch.cat([ev, nv], dim=0))
         for (ek, ev), (nk, nv) in zip(existing_legacy, new_legacy)
     )
-    batch.past_key_values = DynamicCache.from_legacy_cache(merged_legacy)
+    batch.past_key_values = DynamicCache(ddp_cache_data=merged_legacy)
     batch.attention_mask = torch.cat([batch.attention_mask, new_attention_mask], dim=0)
     batch.requests.append(req)
     batch.pending_tokens.append(new_token)

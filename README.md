@@ -127,23 +127,53 @@ that kind of thing) would otherwise surface much later as subtly wrong
 output once requests are being admitted and evicted mid-batch, which
 is a far worse place to have to debug it.
 
+## running phase 3
+
+```bash
+python verify_kv_cache_batched.py
+```
+
+Checkpoint A: a fixed batch of mixed-length prompts, checked against
+Phase 2's reference. Checkpoint B: evict + admit exercised mid-batch
+(short-prompt admit pads the new row, long-prompt admit pads the
+existing rows), every request still checked against its own standalone
+reference.
+
+## running phase 4
+
+```bash
+python verify_scheduler.py
+```
+
+Runs more requests than `max_batch_size` with deliberately uneven
+`max_new_tokens`, so some finish early and force a mid-run admit if
+continuous batching is actually working. Prints the admit/evict
+timeline, batch occupancy, and checks every request against Phase 2's
+reference. Needs both the "continuous batching observed" check and
+every per-request PASS before trusting Phase 5 numbers against this.
+
 ## layout
 
 ```
 mini-inference-server/
 ├── README.md
 ├── requirements.txt
-├── benchmark_naive.py       # phase 1 entry point
-├── verify_kv_cache.py       # phase 2 correctness check
+├── benchmark_naive.py            # phase 1 entry point
+├── verify_kv_cache.py            # phase 2 correctness check
+├── verify_kv_cache_batched.py    # phase 3 correctness check
+├── verify_scheduler.py           # phase 4 correctness check
 └── src/
-    ├── request.py            # request dataclass — id, status, timing
-    ├── model_wrapper.py       # HF model/tokenizer wrapper
-    ├── scheduler_naive.py     # phase 1
-    └── kv_cache_single.py     # phase 2
+    ├── request.py              # request dataclass — id, status, timing
+    ├── model_wrapper.py        # HF model/tokenizer wrapper
+    ├── scheduler_naive.py      # phase 1
+    ├── kv_cache_single.py      # phase 2
+    ├── kv_cache_batched.py     # phase 3
+    └── scheduler.py            # phase 4
 ```
 
 ## next
 
-Verify phase 2, then phase 3 — extend the single-request cache to a
-batch where requests can be admitted and evicted without restarting
-everything else.
+Phase 5: benchmark matrix against vLLM/SGLang/TGI — same model, same
+workload, p50/p95/p99 TTFT, inter-token latency, throughput, and a
+rough cost-per-1M-output-tokens across naive / continuous / vLLM /
+SGLang / TGI.
