@@ -19,13 +19,17 @@ def build_position_ids(attention_mask: torch.Tensor) -> torch.Tensor:
     """
     Per-row position ids derived from the attention mask, so a left-padded
     row's real tokens get position 0, 1, 2... starting at its own first
-    real token -- not at column 0 of the padded tensor. Without this,
+    real token -- not at column 0 of the padded tensor. 
+    
+    Without this,
     GPT-2's learned position embeddings get misaligned for any row shorter
     than the batch's longest, since the model's default position ids are
     a single arange() shared across every row regardless of padding.
+
+    the whole point of position_ids is to tell GPT-2 "this token is the 1st word, and so on."
     """
-    position_ids = attention_mask.long().cumsum(-1) - 1
-    position_ids.masked_fill_(attention_mask == 0, 1)  # dummy value; masked out anyway
+    position_ids = attention_mask.long().cumsum(-1) - 1 #position_ids tells the model "here's where each word actually sits in the sentence,
+    position_ids.masked_fill_(attention_mask == 0, 1)  # mask out padding tokens, since we got attention_mask as source of truth
     return position_ids
 
 
@@ -35,12 +39,12 @@ class ModelWrapper:
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         if self.tokenizer.pad_token is None:
-            # GPT-2 has no pad token by default -- needed for batched padding
+            # GPT-2 has no pad token by default -- needed for batched padding, so set it to end of sequence token first
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        self.model = AutoModelForCausalLM.from_pretrained(model_name)
-        self.model.to(self.device)
-        self.model.eval()
+        self.model = AutoModelForCausalLM.from_pretrained(model_name) #load model
+        self.model.to(self.device) # move model to device
+        self.model.eval() # switch to evaluation mode
 
         self.eos_token_id = self.tokenizer.eos_token_id
 
@@ -50,7 +54,7 @@ class ModelWrapper:
     def decode(self, token_ids: list[int]) -> str:
         return self.tokenizer.decode(token_ids, skip_special_tokens=True)
 
-    @torch.no_grad()
+    @torch.no_grad() # disable gradient calculation for inference
     def forward_batch(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
         """
         One forward pass over a padded batch.
