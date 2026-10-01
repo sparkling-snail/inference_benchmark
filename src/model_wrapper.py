@@ -61,11 +61,11 @@ class ModelWrapper:
         Returns logits for the last position of each sequence.
         Shapes: input_ids/attention_mask -> (batch, seq_len)
         """
-        input_ids = input_ids.to(self.device)
-        attention_mask = attention_mask.to(self.device)
-        position_ids = build_position_ids(attention_mask)
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, position_ids=position_ids)
-        last_token_logits = outputs.logits[:, -1, :]  # (batch, vocab)
+        input_ids = input_ids.to(self.device) # the padded token numbers
+        attention_mask = attention_mask.to(self.device) # [0,1,1] / [1,1,1] — which columns are real
+        position_ids = build_position_ids(attention_mask) # [1,0,1] / [0,1,2] — correct word-order labels, just fixed up
+        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, position_ids=position_ids) #forward pass over the batch
+        last_token_logits = outputs.logits[:, -1, :]  # (batch, vocab) #You don't care about predictions at every position — you only care about "what comes next, after everything we've fed in so far." That's always the last column of each row.
         return last_token_logits
 
     @torch.no_grad()
@@ -108,7 +108,7 @@ class ModelWrapper:
         input_ids = input_ids.to(self.device)
         attention_mask = attention_mask.to(self.device)
         full_position_ids = build_position_ids(attention_mask)
-        position_ids = full_position_ids[:, -input_ids.shape[1]:]
+        positxion_ids = full_position_ids[:, -input_ids.shape[1]:]
         outputs = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -121,3 +121,4 @@ class ModelWrapper:
 
     def greedy_next_token(self, logits_row: torch.Tensor) -> int:
         return int(torch.argmax(logits_row).item())
+x
