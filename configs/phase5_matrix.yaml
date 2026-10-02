@@ -1,0 +1,30 @@
+warmup_requests: 2
+repeats: 1
+output_dir: results/phase5/raw
+
+runtimes:
+  - name: local_continuous
+    kind: openai_compat
+    base_url: http://127.0.0.1:8000
+    model: gpt2
+  - name: local_naive
+    kind: openai_compat
+    base_url: http://127.0.0.1:8001
+    model: gpt2
+
+workloads:
+  - name: short_steady
+    prompt_chars: 128
+    max_new_tokens: 32
+    concurrency: 2
+    num_requests: 8
+    traffic_pattern: steady
+    request_interval_ms: 50
+  - name: medium_bursty
+    prompt_chars: 512
+    max_new_tokens: 64
+    concurrency: 4
+    num_requests: 12
+    traffic_pattern: bursty
+    request_interval_ms: 250
+    burst_size: 4
