@@ -9,10 +9,11 @@ requests, and a scheduler that keeps the GPU busy by refilling a freed
 batch slot the instant a row finishes, instead of waiting for the whole
 batch to drain before starting the next one.
 
-Policy: FCFS, fixed max_batch_size. Admission order follows each
-Request's arrival_time (set at construction), not list order, so
-handing the scheduler an out-of-order list still behaves correctly. A
-smarter policy (priority, deadline-aware, shortest-job-first, ...) is a
+Policy: FCFS, fixed max_batch_size. 
+
+Admission order follows each Request's arrival_time (set at construction), 
+not list order, sohanding the scheduler an out-of-order list still behaves correctly.
+A smarter policy (priority, deadline-aware, shortest-job-first, ...) is a
 drop-in replacement of the admission choice in _fill() later -- nothing
 else here is FCFS-specific.
 
