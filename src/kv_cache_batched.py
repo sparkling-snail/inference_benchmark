@@ -72,7 +72,7 @@ def _left_pad_batch(model: ModelWrapper, requests: list[Request]) -> tuple[torch
         attention_mask[row, offset:] = 1
     return input_ids, attention_mask
 
-
+# start a fix batch first, prefill the cache
 def start_batch(model: ModelWrapper, requests: list[Request]) -> BatchedKVCache:
     """Prefills every request's prompt together and returns the initial batch state."""
     input_ids, attention_mask = _left_pad_batch(model, requests)
@@ -81,7 +81,7 @@ def start_batch(model: ModelWrapper, requests: list[Request]) -> BatchedKVCache:
     pending_tokens = []
     for row, req in enumerate(requests):
         next_token = model.greedy_next_token(logits[row])
-        req.record_token(next_token)
+        req.record_token(next_token) #picked but not yet in cache
         pending_tokens.append(next_token)
 
     return BatchedKVCache(
@@ -91,7 +91,7 @@ def start_batch(model: ModelWrapper, requests: list[Request]) -> BatchedKVCache:
         past_key_values=past_key_values,
     )
 
-
+# the first decode step
 def step(model: ModelWrapper, batch: BatchedKVCache, eos_token_id: int | None) -> None:
     """Advances every row in the batch by one token."""
     if batch.batch_size == 0:
@@ -104,15 +104,16 @@ def step(model: ModelWrapper, batch: BatchedKVCache, eos_token_id: int | None) -
 
     logits, batch.past_key_values = model.forward_batch_step(
         input_ids, batch.attention_mask, past_key_values=batch.past_key_values
-    )
+    ) #batch.past_key_values: the updated cache, saved straight back into the folder, replacing the old cache.
 
     for row, req in enumerate(batch.requests):
-        next_token = model.greedy_next_token(logits[row])
+        next_token = model.greedy_next_token(logits[row]) #gets the token with the highest logit score
         # EOS-aware guard: a plain length check would record extra tokens
         # for a row that emits EOS before its own max_new_tokens, making
         # it diverge from the single-sequence reference used to verify.
         if not req.is_finished(eos_token_id):
-            req.record_token(next_token)
+            req.record_token(next_token) #records the token in the request object
+        batch.pending_tokens[row] = next_token #update the pending token for the row
         batch.pending_tokens[row] = next_token
 
 

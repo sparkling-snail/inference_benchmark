@@ -23,13 +23,13 @@ from .request import Request
 def run_single_with_cache(model: ModelWrapper, req: Request) -> Request:
     """Generates req.max_new_tokens (or until EOS) using a growing KV cache."""
     req.prompt_token_ids = model.encode(req.prompt)
-    next_input = torch.tensor([req.prompt_token_ids], dtype=torch.long)
+    next_input = torch.tensor([req.prompt_token_ids], dtype=torch.long) #turns the Python list into a PyTorch tensor, which is what the model needs.
     past_key_values = None
 
     while not req.is_finished(model.eos_token_id):
         logits, past_key_values = model.forward_step(next_input, past_key_values)
-        next_token = model.greedy_next_token(logits)
-        req.record_token(next_token)
+        next_token = model.greedy_next_token(logits) #gets the token with the highest logit score
+        req.record_token(next_token) #records the token in the request object
         # every step after the first feeds only the one new token --
         # the cache already holds attention state for everything before it
         next_input = torch.tensor([[next_token]], dtype=torch.long)
