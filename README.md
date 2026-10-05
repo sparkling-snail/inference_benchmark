@@ -152,6 +152,14 @@ timeline, batch occupancy, and checks every request against Phase 2's
 reference. Needs both the "continuous batching observed" check and
 every per-request PASS before trusting Phase 5 numbers against this.
 
+## tail-latency experiments
+
+`experiments/tail/` reproduces four sources of p99 latency (queueing,
+prefill/decode interference, KV-cache preemption, head-of-line
+blocking) -- three against vLLM on one GPU, one against this engine's
+scheduler with pluggable admission policies (`fcfs` / `sjf` /
+`sjf_aging`). See `experiments/tail/README.md`.
+
 ## layout
 
 ```

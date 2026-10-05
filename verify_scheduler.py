@@ -19,6 +19,9 @@ Two checks:
     is the property Phase 3 Checkpoint A didn't have and this phase
     exists to add.
 
+Both checks run once per admission policy (fcfs, sjf): a policy only
+changes WHO gets a free slot, so per-request output must not change.
+
 Usage:
     python verify_scheduler.py
 """
@@ -58,6 +61,19 @@ def main():
     model = ModelWrapper()
     print(f"Device: {model.device}\n")
 
+    results = {policy: check_policy(model, policy) for policy in ("fcfs", "sjf")}
+    print()
+    for policy, ok in results.items():
+        print(f"[{'PASS' if ok else 'FAIL'}] policy={policy}")
+    if all(results.values()):
+        print("\nAll policies verified. Phase 4 verified.")
+    else:
+        print("\nMISMATCH or no continuous batching observed -- do not proceed to Phase 5.")
+
+
+def check_policy(model: ModelWrapper, policy: str) -> bool:
+    print(f"=== policy: {policy} ===")
+
     requests = [Request(prompt=p, max_new_tokens=n) for p, n in WORKLOAD]
     prompt_by_id = {req.id: req.prompt for req in requests}
     max_new_tokens_by_id = {req.id: req.max_new_tokens for req in requests}
@@ -68,7 +84,9 @@ def main():
         events.append((step_index, kind, req.id))
 
     print(f"Running {len(requests)} requests through the scheduler (max_batch_size={MAX_BATCH_SIZE})...\n")
-    finished, stats = run_scheduler(model, requests, max_batch_size=MAX_BATCH_SIZE, on_event=on_event)
+    finished, stats = run_scheduler(
+        model, requests, max_batch_size=MAX_BATCH_SIZE, on_event=on_event, policy=policy
+    )
 
     print("Scheduling timeline:")
     for step_index, kind, req_id in events:
@@ -101,9 +119,8 @@ def main():
     print()
     if all_passed:
         print(f"All {len(requests)} requests match their single-sequence reference, "
-              "and continuous batching was exercised. Phase 4 verified.")
-    else:
-        print("MISMATCH or no continuous batching observed -- do not proceed to Phase 5.")
+              f"and continuous batching was exercised (policy={policy}).\n")
+    return all_passed
 
 
 if __name__ == "__main__":
