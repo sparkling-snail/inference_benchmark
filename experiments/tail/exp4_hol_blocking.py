@@ -30,11 +30,11 @@ from __future__ import annotations
 import argparse
 import time
 
-from src.model_wrapper import MODEL_NAME, ModelWrapper
-from src.request import Request
-from src.scheduler import POLICIES, make_sjf_aging, run_scheduler
+from engine.model_wrapper import MODEL_NAME, ModelWrapper
+from engine.request import Request
+from engine.scheduler import POLICIES, make_sjf_aging, run_scheduler
 
-from .common import fmt_ms, make_prompt, poisson_offsets, save_result, summarize
+from benchmarks.stats import fmt_ms, make_prompt, poisson_offsets, save_result, summarize
 
 
 def build_workload(args) -> list[dict]:

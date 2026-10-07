@@ -20,8 +20,8 @@ import argparse
 import asyncio
 import random
 
-from .client import RequestSpec, resolve_model, run_open_loop, scrape_metrics, pick
-from .common import fmt_ms, make_prompt, poisson_offsets, save_result, summarize
+from benchmarks.loadgen import RequestSpec, resolve_model, run_open_loop, scrape_metrics, pick
+from benchmarks.stats import fmt_ms, make_prompt, poisson_offsets, save_result, summarize
 
 
 def workload(rate: float, duration_s: float, args, seed: int) -> list[RequestSpec]:

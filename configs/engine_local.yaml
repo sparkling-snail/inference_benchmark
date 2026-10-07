@@ -1,0 +1,18 @@
+# The from-scratch engine (engine/), static vs continuous batching, on CPU
+# with GPT-2. Same pipeline and SLO search as the GPU study, just a much
+# looser SLO since this is a CPU.
+#
+#   python -m benchmarks run configs/engine_local.yaml
+name: engine_local
+results_dir: results/engine
+recipes_dir: results/engine/recipes
+port: 8791
+
+hardware: {gpu: cpu, gpus: 1, usd_per_gpu_hour: 0.0}
+slo: {ttft_p99_ms: 3000, itl_p99_ms: 500}
+workload: {prompt_words: [10, 60], output_tokens: [16, 48], duration_s: 30}
+search: {start_rate: 0.25, max_rate: 16, rel_tol: 0.2, max_probes: 6}
+
+deployments:
+  - {model: gpt2, engine: local, name: gpt2__continuous, extra_args: [--runtime, continuous, --max-batch-size, "8"]}
+  - {model: gpt2, engine: local, name: gpt2__static,     extra_args: [--runtime, naive, --max-batch-size, "8"]}

@@ -1,0 +1,69 @@
+# The recipe study: 3 models x vLLM/SGLang x BF16/FP8 x TP/PP/EP on one
+# 4x NVIDIA L4 box (AWS g6.12xlarge). ~30 deployments.
+#
+#   python -m benchmarks plan configs/l4x4.yaml
+#   python -m benchmarks run  configs/l4x4.yaml --skip-existing
+#
+# L4 is Ada (sm_89), so FP8 runs on native FP8 tensor cores rather than
+# being weight-only. The four GPUs share PCIe, no NVLink, which is part
+# of what the TP rows measure.
+name: l4x4
+
+hardware:
+  gpu: NVIDIA-L4
+  gpus: 4
+  interconnect: pcie
+  usd_per_gpu_hour: 1.15     # g6.12xlarge on-demand / 4; check current pricing
+
+# Interactive chat: first token within a second, stream never visibly stalls.
+slo: {ttft_p99_ms: 1000, itl_p99_ms: 100, max_error_rate: 0.01}
+
+workload:
+  prompt_words: [200, 1000]  # ~250-1300 tokens
+  output_tokens: [64, 256]
+  duration_s: 60
+  seed: 0
+
+search: {start_rate: 1, max_rate: 64, rel_tol: 0.1, max_probes: 8}
+
+defaults:
+  max_model_len: 4096
+
+deployments:
+  # 8B dense: fits one L4 in BF16, so TP is purely a latency/cost trade.
+  - model: meta-llama/Llama-3.1-8B-Instruct
+    engine: [vllm, sglang]
+    precision: [bf16, fp8]
+    tp: [1, 2, 4]
+
+  # Speculative decoding: helps ITL at low load, can cost throughput at high load.
+  - model: meta-llama/Llama-3.1-8B-Instruct
+    engine: vllm
+    precision: bf16
+    tp: 1
+    spec_decode: {method: ngram, num_tokens: 4}
+
+  # 14B dense: ~28 GB of BF16 weights don't fit one 24 GB L4, so the real
+  # question is BF16 across 2 GPUs vs FP8 on 1.
+  - model: Qwen/Qwen2.5-14B-Instruct
+    engine: [vllm, sglang]
+    precision: bf16
+    tp: [2, 4]
+  - model: Qwen/Qwen2.5-14B-Instruct
+    engine: [vllm, sglang]
+    precision: fp8
+    tp: [1, 2]
+
+  # Pipeline vs tensor parallel at the same GPU count (over PCIe).
+  - model: Qwen/Qwen2.5-14B-Instruct
+    engine: vllm
+    precision: bf16
+    tp: 1
+    pp: 2
+
+  # MoE, 30B total / 3B active: expert parallel vs tensor parallel.
+  - model: Qwen/Qwen3-30B-A3B
+    engine: [vllm, sglang]
+    precision: fp8
+    tp: [2, 4]
+    ep: [false, true]

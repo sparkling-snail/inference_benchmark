@@ -24,8 +24,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 
-from .client import RequestSpec, pick, resolve_model, run_open_loop, scrape_metrics
-from .common import fmt_ms, make_prompt, poisson_offsets, save_result, summarize
+from benchmarks.loadgen import RequestSpec, pick, resolve_model, run_open_loop, scrape_metrics
+from benchmarks.stats import fmt_ms, make_prompt, poisson_offsets, save_result, summarize
 
 
 async def main_async(args) -> None:

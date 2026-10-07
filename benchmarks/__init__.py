@@ -1,1 +1,1 @@
-"""Phase 5 benchmark helpers."""
+"""Inference recipe pipeline: matrix -> launch -> SLO goodput search -> recipe."""

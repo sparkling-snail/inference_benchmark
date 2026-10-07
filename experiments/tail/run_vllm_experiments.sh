@@ -36,7 +36,7 @@ start_server() {  # start_server <label> <extra vllm args...>
   SERVER_PID=$!
   python - "$BASE" <<'PY'
 import asyncio, sys
-from experiments.tail.client import wait_healthy
+from benchmarks.loadgen import wait_healthy
 asyncio.run(wait_healthy(sys.argv[1]))
 PY
 }

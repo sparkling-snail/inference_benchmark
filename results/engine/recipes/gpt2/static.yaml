@@ -1,0 +1,57 @@
+name: gpt2__static
+model:
+  id: gpt2
+runtime:
+  engine: local
+  engine_version: 2.14.1
+  command:
+  - python
+  - -m
+  - engine.server
+  - --port
+  - '8791'
+  - --model-name
+  - gpt2
+  - --runtime
+  - naive
+  - --max-batch-size
+  - '8'
+precision: bf16
+topology:
+  gpu: cpu
+  gpus: 1
+  tp: 1
+  pp: 1
+  ep: false
+  interconnect: pcie
+spec_decode: null
+slo:
+  ttft_p99_ms: 3000
+  itl_p99_ms: 500
+  max_error_rate: 0.01
+workload:
+  prompt_words:
+  - 10
+  - 60
+  output_tokens:
+  - 16
+  - 48
+  duration_s: 30
+  seed: 0
+envelope: null
+quality:
+  status: not_run
+k8s_profile:
+  resources:
+    limits:
+      nvidia.com/gpu: 1
+  nodeSelector:
+    nvidia.com/gpu.product: cpu
+  placement: single-node
+provenance:
+  matrix: engine_local
+  git_commit: 2fb3630
+  measured_at: '2026-10-07T14:48:15Z'
+  probes: 4
+  gpus_seen: null
+status: no_rate_meets_slo

@@ -28,8 +28,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 
-from .client import RequestSpec, resolve_model, run_open_loop
-from .common import fmt_ms, make_prompt, save_result, summarize
+from benchmarks.loadgen import RequestSpec, resolve_model, run_open_loop
+from benchmarks.stats import fmt_ms, make_prompt, save_result, summarize
 
 
 async def main_async(args) -> None:

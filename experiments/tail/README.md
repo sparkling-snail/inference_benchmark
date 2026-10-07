@@ -18,12 +18,12 @@ regenerated or re-cut without rerunning.
 
 ## Exp 4: on your laptop, no GPU needed
 
-Uses the Phase 4 scheduler with the new pluggable admission policy
-(`fcfs`, `sjf`, `sjf_aging` in `src/scheduler.py`). The same Poisson
+Uses the engine's continuous-batching scheduler with its pluggable admission
+policy (`fcfs`, `sjf`, `sjf_aging` in `engine/scheduler.py`). The same Poisson
 arrival trace is replayed for each policy.
 
 ```bash
-python verify_scheduler.py                      # correctness, now for fcfs AND sjf
+python -m engine.verify.scheduler               # correctness, for fcfs AND sjf
 python -m experiments.tail.exp4_hol_blocking    # ~10-20 min on CPU with gpt2
 python -m experiments.tail.plot
 ```
@@ -55,7 +55,7 @@ python -m experiments.tail.exp1_load_sweep --base-url http://localhost:8000 --ra
 ```
 
 They work against any OpenAI-compatible server, including this repo's
-`servers/local_openai_server.py`.
+`engine/server.py`.
 
 ## Testing the harness without a GPU
 

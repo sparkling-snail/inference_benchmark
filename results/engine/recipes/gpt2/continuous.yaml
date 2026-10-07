@@ -1,0 +1,74 @@
+name: gpt2__continuous
+model:
+  id: gpt2
+runtime:
+  engine: local
+  engine_version: 2.14.1
+  command:
+  - python
+  - -m
+  - engine.server
+  - --port
+  - '8791'
+  - --model-name
+  - gpt2
+  - --runtime
+  - continuous
+  - --max-batch-size
+  - '8'
+precision: bf16
+topology:
+  gpu: cpu
+  gpus: 1
+  tp: 1
+  pp: 1
+  ep: false
+  interconnect: pcie
+spec_decode: null
+slo:
+  ttft_p99_ms: 3000
+  itl_p99_ms: 500
+  max_error_rate: 0.01
+workload:
+  prompt_words:
+  - 10
+  - 60
+  output_tokens:
+  - 16
+  - 48
+  duration_s: 30
+  seed: 0
+envelope:
+  goodput_rps: 1.682
+  goodput_bracket_rps:
+  - 1.682
+  - 2.0
+  output_tokens_per_s: 48.9
+  output_tokens_per_s_per_gpu: 48.9
+  ttft_ms:
+    p50: 163.5
+    p99: 1342.0
+  itl_ms:
+    p50: 68.4
+    p99: 423.0
+  e2e_ms:
+    p50: 2993.4
+    p99: 7155.8
+  usd_per_1m_output_tokens: 0.0
+  capped_at_max_rate: false
+quality:
+  status: not_run
+k8s_profile:
+  resources:
+    limits:
+      nvidia.com/gpu: 1
+  nodeSelector:
+    nvidia.com/gpu.product: cpu
+  placement: single-node
+provenance:
+  matrix: engine_local
+  git_commit: 2fb3630
+  measured_at: '2026-10-07T14:40:39Z'
+  probes: 6
+  gpus_seen: null
+status: pass
