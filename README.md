@@ -181,15 +181,29 @@ tests/               unit tests + fake vLLM-shaped server
 
 ## Roadmap
 
-- **Accuracy gate.** Run GSM8K and an MMLU subset through `lm-evaluation-harness`
-  against each endpoint. FP8 recipes more than ~1 point below BF16 are marked
-  `quality: fail` and dropped from the table.
-- **Release qualification.** A `qualify` command that re-runs a recipe after an
-  engine, driver or model bump and fails if it falls outside its stored envelope.
-- **Recipe API for agents.** An MCP server over `recipes/`, answering questions
-  like "cheapest config for model X at p99 TTFT < 500 ms".
-- **TensorRT-LLM** for the 8B model, and an Nsight Systems trace of prefill vs
-  decode kernels.
+1. **Accuracy gate.** After the goodput search, run `lm-evaluation-harness`
+   (GSM8K + an MMLU subset) against the same running server and record the score
+   in the recipe's `quality` field. An FP8 recipe fails if it scores more than ~1
+   point below the BF16 recipe for the same model, and failing recipes drop out
+   of the table. Built and tested on CPU against the engine first, so one GPU
+   rental covers performance and quality together.
+2. **GPU pilot.** The Llama-8B vLLM rows on a single-L4 `g6.xlarge`
+   (`--only llama vllm`), to catch engine-flag drift, model-access and
+   out-of-memory problems cheaply before renting four GPUs.
+3. **Full study.** All 30 deployments in [`configs/l4x4.yaml`](configs/l4x4.yaml)
+   on a `g6.12xlarge` (~12–15 GPU-hours), plus tail-latency experiments 1–3 in
+   the same session.
+4. **Write-up.** The recipe table and the main findings at the top of this
+   README, for example whether a 14B model is cheaper as FP8 on 1 GPU or BF16
+   on 2, plus a short blog post.
+5. **Afterwards:**
+   - **Release qualification.** A `qualify` command that re-runs a recipe after
+     an engine, driver or model bump and fails if it falls outside its stored
+     envelope.
+   - **Recipe API for agents.** An MCP server over `recipes/`, answering
+     questions like "cheapest config for model X at p99 TTFT < 500 ms".
+   - **TensorRT-LLM** for the 8B model, and an Nsight Systems trace of prefill
+     vs decode kernels.
 
 ## Limitations
 
