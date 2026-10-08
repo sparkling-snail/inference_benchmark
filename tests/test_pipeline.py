@@ -58,6 +58,7 @@ def test_matrix_spec_decode_and_duplicate_names(tmp_path):
 
 def test_repo_matrices_load():
     assert len(load_matrix("configs/l4x4.yaml").deployments) == 30
+    assert len(load_matrix("configs/a100x8.yaml").deployments) == 27
     assert load_matrix("configs/smoke_quality.yaml").quality.max_drop_pts == 1.0
     load_matrix("configs/smoke.yaml")
     load_matrix("configs/engine_local.yaml")
@@ -262,3 +263,10 @@ def test_measure_quality_runs_harness_subprocess(tmp_path, monkeypatch):
     monkeypatch.setenv("STUB_LM_EVAL_FAIL", "1")
     with pytest.raises(RuntimeError, match="lm_eval failed on gsm8k"):
         asyncio.run(measure_quality("http://127.0.0.1:1", "org/M", Quality(), tmp_path / "q2.log"))
+
+
+def test_engine_binaries_overridable(monkeypatch):
+    monkeypatch.setenv("VLLM_BIN", "/opt/vllm-env/bin/vllm")
+    monkeypatch.setenv("SGLANG_PYTHON", "/opt/sglang-env/bin/python")
+    assert build_command(Deployment(model="m", engine="vllm"), 1)[0] == "/opt/vllm-env/bin/vllm"
+    assert build_command(Deployment(model="m", engine="sglang"), 1)[0] == "/opt/sglang-env/bin/python"

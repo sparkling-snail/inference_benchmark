@@ -1,0 +1,86 @@
+# The recipe study on one 8x NVIDIA A100 80GB SXM box (NVSwitch). ~27 deployments.
+#
+#   python -m benchmarks plan configs/a100x8.yaml
+#   python -m benchmarks run  configs/a100x8.yaml --only llama-3.1-8b vllm     # pilot first
+#   python -m benchmarks run  configs/a100x8.yaml --skip-existing
+#
+# What this box is good for: tensor-parallel scaling up to 8 GPUs over NVSwitch,
+# TP vs PP at 8 GPUs, expert parallelism, and a 70B model in BF16.
+#
+# What it is not: an FP8 speed study. A100 (Ampere, sm_80) has no FP8 tensor
+# cores, so vLLM runs FP8 as weight-only (Marlin kernels): weights are stored in
+# 8 bits and upcast to BF16 for the matmul. That halves weight memory and
+# bandwidth, so it can help decode latency when memory-bound, but don't expect
+# Hopper-style throughput gains. The accuracy gate still applies.
+#
+# On the 40GB A100 instead: 70B BF16 needs tp >= 4, and the MoE in BF16 needs tp >= 2.
+name: a100x8
+
+hardware:
+  gpu: NVIDIA-A100-SXM4-80GB
+  gpus: 8
+  interconnect: nvswitch
+  usd_per_gpu_hour: 1.79     # placeholder: set to your provider's price / 8
+
+slo: {ttft_p99_ms: 1000, itl_p99_ms: 100, max_error_rate: 0.01}
+
+workload:
+  prompt_words: [200, 1000]  # ~250-1300 tokens
+  output_tokens: [64, 256]
+  duration_s: 60
+  seed: 0
+
+search: {start_rate: 1, max_rate: 128, rel_tol: 0.1, max_probes: 9}
+
+# See configs/l4x4.yaml for why full datasets and a 2-point bar.
+quality:
+  tasks: [gsm8k, mmlu]
+  limit: null
+  max_drop_pts: 2.0
+
+defaults:
+  max_model_len: 4096
+
+deployments:
+  # 8B: fits one A100 many times over. Is TP=2 ever worth paying for?
+  - model: meta-llama/Llama-3.1-8B-Instruct
+    engine: [vllm, sglang]
+    precision: [bf16, fp8]
+    tp: [1, 2]
+
+  # Speculative decoding: helps ITL at low load, can cost throughput at high load.
+  - model: meta-llama/Llama-3.1-8B-Instruct
+    engine: vllm
+    precision: bf16
+    tp: 1
+    spec_decode: {method: ngram, num_tokens: 4}
+
+  # 70B in BF16 (~140 GB of weights): the tensor-parallel scaling curve.
+  - model: meta-llama/Llama-3.1-70B-Instruct
+    engine: vllm
+    precision: bf16
+    tp: [2, 4, 8]
+  - model: meta-llama/Llama-3.1-70B-Instruct
+    engine: sglang
+    precision: bf16
+    tp: [4, 8]
+
+  # 70B weight-only FP8 (~70 GB): fewer GPUs for the same model. Cheaper at the SLO?
+  - model: meta-llama/Llama-3.1-70B-Instruct
+    engine: [vllm, sglang]
+    precision: fp8
+    tp: [2, 4]
+
+  # Pipeline vs tensor parallel at 8 GPUs.
+  - model: meta-llama/Llama-3.1-70B-Instruct
+    engine: vllm
+    precision: bf16
+    tp: 4
+    pp: 2
+
+  # MoE, 30B total / 3B active, in BF16: expert parallel vs tensor parallel.
+  - model: Qwen/Qwen3-30B-A3B
+    engine: [vllm, sglang]
+    precision: bf16
+    tp: [2, 4]
+    ep: [false, true]

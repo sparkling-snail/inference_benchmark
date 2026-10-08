@@ -8,7 +8,11 @@ record the environment it ran in, and tear it down afterwards.
 Engine flags drift between releases (vLLM especially). Everything that
 maps the matrix's vocabulary (tp, precision, spec_decode, ...) onto real
 CLI flags lives in build_command(), and extra_args is the escape hatch
-for anything it doesn't cover. Check `vllm serve --help` /
+for anything it doesn't cover.
+
+vLLM and SGLang often pin different torch versions, so each can live in its
+own virtualenv: VLLM_BIN (default "vllm") and SGLANG_PYTHON (default: this
+interpreter) point the launcher at them. Check `vllm serve --help` /
 `python -m sglang.launch_server --help` against the pinned version.
 """
 
@@ -36,7 +40,7 @@ def build_command(dep: Deployment, port: int) -> list[str] | None:
     if dep.engine == "external":
         return None
     if dep.engine == "vllm":
-        cmd = ["vllm", "serve", dep.model, "--port", str(port),
+        cmd = [os.environ.get("VLLM_BIN", "vllm"), "serve", dep.model, "--port", str(port),
                "--tensor-parallel-size", str(dep.tp),
                "--dtype", VLLM_DTYPE[dep.precision]]
         if dep.pp > 1:
@@ -55,7 +59,7 @@ def build_command(dep: Deployment, port: int) -> list[str] | None:
                 spec["model"] = dep.spec_decode.draft_model
             cmd += ["--speculative-config", json.dumps(spec)]
     elif dep.engine == "sglang":
-        cmd = [sys.executable, "-m", "sglang.launch_server", "--model-path", dep.model,
+        cmd = [os.environ.get("SGLANG_PYTHON", sys.executable), "-m", "sglang.launch_server", "--model-path", dep.model,
                "--port", str(port), "--tp-size", str(dep.tp)]
         if dep.precision in ("bf16", "fp16"):
             cmd += ["--dtype", VLLM_DTYPE[dep.precision]]
@@ -144,8 +148,18 @@ def capture_environment(dep: Deployment) -> dict:
         env["cuda"] = _run([sys.executable, "-c", "import torch; print(torch.version.cuda)"])
     module = {"vllm": "vllm", "sglang": "sglang", "local": "torch"}.get(dep.engine)
     if module:
-        env["engine_version"] = _run([sys.executable, "-c", f"import {module}; print({module}.__version__)"])
+        env["engine_version"] = _run([_engine_python(dep.engine), "-c", f"import {module}; print({module}.__version__)"])
     return {k: v for k, v in env.items() if v}
+
+
+def _engine_python(engine: str) -> str:
+    """The interpreter that has the engine installed (see VLLM_BIN / SGLANG_PYTHON)."""
+    if engine == "sglang":
+        return os.environ.get("SGLANG_PYTHON", sys.executable)
+    vllm_bin = os.environ.get("VLLM_BIN")
+    if engine == "vllm" and vllm_bin and "/" in vllm_bin:
+        return str(Path(vllm_bin).parent / "python")
+    return sys.executable
 
 
 def _run(cmd: list[str]) -> str | None:
