@@ -59,8 +59,12 @@ async def run_one(m: Matrix, dep: Deployment, cache: QualityCache) -> Path:
             quality = cache.get(dep)
             if quality is None:
                 print(f"  quality: {', '.join(m.quality.tasks)} (limit {m.quality.limit})")
-                quality = await measure_quality(server.base_url, model, m.quality, raw_dir / "logs" / f"{dep.name}.quality.log")
-                cache.put(dep, quality)
+                try:
+                    quality = await measure_quality(server.base_url, model, m.quality, raw_dir / "logs" / f"{dep.name}.quality.log")
+                    cache.put(dep, quality)
+                except Exception as exc:  # keep the performance measurement; scoring can be redone
+                    print(f"  !! quality failed: {exc}")
+                    quality = {"status": "error", "error": str(exc)}
             else:
                 print("  quality: reusing scores from a deployment with the same precision")
             recipe["quality"] = quality

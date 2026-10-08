@@ -126,7 +126,7 @@ pip install -r requirements.txt
 python -m benchmarks run configs/smoke.yaml
 
 # on the GPU box
-pip install vllm sglang
+pip install vllm sglang "lm-eval[api]"
 python -m benchmarks plan configs/l4x4.yaml                  # the 30 deployments + server commands
 python -m benchmarks run  configs/l4x4.yaml --skip-existing  # resumable; one failure doesn't stop the rest
 python -m benchmarks run  configs/l4x4.yaml --only 14b fp8   # a subset
@@ -134,7 +134,7 @@ python -m benchmarks gate --max-drop-pts 2.0                 # re-apply the accu
 python -m benchmarks report                                  # rebuild recipes/README.md
 ```
 
-Scoring needs `pip install lm-eval` on the GPU box; leave out the `quality:` block
+Scoring needs `pip install "lm-eval[api]"` on the GPU box; leave out the `quality:` block
 in the matrix to skip it.
 
 To benchmark a server you started yourself, use `engine: external` with a

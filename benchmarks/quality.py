@@ -89,7 +89,7 @@ async def measure_quality(base_url: str, model: str, cfg: Quality, log_path: Pat
             log.flush()
             proc = await asyncio.create_subprocess_exec(*cmd, stdout=log, stderr=asyncio.subprocess.STDOUT)
             if await proc.wait() != 0:
-                raise RuntimeError(f"lm_eval failed on {task} (is it installed? pip install lm-eval); see {log_path}")
+                raise RuntimeError(f"lm_eval failed on {task} (is it installed? pip install 'lm-eval[api]'); see {log_path}")
             files = sorted(out_dir.rglob("results_*.json"), key=lambda p: p.stat().st_mtime)
             if not files:
                 raise RuntimeError(f"lm_eval wrote no results for {task}; see {log_path}")
