@@ -1,0 +1,57 @@
+# One-hour cut of configs/a100x8.yaml: the six rows with the most signal, with
+# shorter probes and a GSM8K-only accuracy check. vLLM only.
+#
+#   python -m benchmarks run configs/a100x8_quick.yaml --skip-existing
+#
+# Trade-offs vs the full matrix, stated in the write-up:
+#   - goodput edge within ~20% instead of ~10% (rel_tol 0.2, 30 s probes)
+#   - GSM8K on 250 examples only: standard error ~2.5 points, so FP8 verdicts
+#     will carry "noisy"; it shows the gate working, not a precise quality number
+#   - no SGLang, no MoE, no 70B FP8, no PP
+name: a100x8_quick
+
+hardware:
+  gpu: NVIDIA-A100-SXM4-80GB
+  gpus: 8
+  interconnect: nvswitch
+  usd_per_gpu_hour: 1.79     # placeholder: set to your provider's price / 8
+
+slo: {ttft_p99_ms: 1000, itl_p99_ms: 100, max_error_rate: 0.01}
+
+workload:
+  prompt_words: [200, 1000]
+  output_tokens: [64, 256]
+  duration_s: 30
+  seed: 0
+
+search: {start_rate: 4, max_rate: 128, rel_tol: 0.2, max_probes: 6}
+
+quality:
+  tasks: [gsm8k]
+  limit: 250
+  max_drop_pts: 2.0
+
+defaults:
+  max_model_len: 4096
+
+deployments:
+  # 8B: baseline, weight-only FP8 (gated against BF16), TP=2, speculative decoding
+  - model: meta-llama/Llama-3.1-8B-Instruct
+    engine: vllm
+    precision: [bf16, fp8]
+    tp: 1
+  - model: meta-llama/Llama-3.1-8B-Instruct
+    engine: vllm
+    precision: bf16
+    tp: 2
+  - model: meta-llama/Llama-3.1-8B-Instruct
+    engine: vllm
+    precision: bf16
+    tp: 1
+    spec_decode: {method: ngram, num_tokens: 4}
+
+  # 70B BF16: TP 4 vs TP 8 over NVSwitch. Is doubling the GPUs worth it?
+  - model: meta-llama/Llama-3.1-70B-Instruct
+    engine: vllm
+    precision: bf16
+    tp: [4, 8]
