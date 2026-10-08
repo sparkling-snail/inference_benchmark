@@ -108,6 +108,7 @@ def print_gate(statuses: dict[str, str]) -> None:
 
 
 def main() -> None:
+    sys.stdout.reconfigure(line_buffering=True)  # show progress live even when piped into tee
     ap = argparse.ArgumentParser(prog="python -m benchmarks", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)

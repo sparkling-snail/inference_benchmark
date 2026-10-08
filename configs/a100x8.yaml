@@ -57,7 +57,7 @@ deployments:
     tp: 1
     spec_decode: {method: ngram, num_tokens: 4}
 
-  # 72B in BF16 (~140 GB of weights): TP=4 is marginal on 40 GB GPUs, TP=8 comfortable.
+  # 72B in BF16 (~145 GB of weights): TP=4 is marginal on 40 GB GPUs, TP=8 comfortable.
   - model: Qwen/Qwen2.5-72B-Instruct
     engine: vllm
     precision: bf16
