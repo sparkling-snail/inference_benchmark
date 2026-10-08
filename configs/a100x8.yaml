@@ -1,4 +1,4 @@
-# The recipe study on one 8x NVIDIA A100 80GB SXM box (NVSwitch). ~27 deployments.
+# The recipe study on one 8x NVIDIA A100 40GB SXM box (NVSwitch). 25 deployments.
 #
 #   python -m benchmarks plan configs/a100x8.yaml
 #   python -m benchmarks run  configs/a100x8.yaml --only llama-3.1-8b vllm     # pilot first
@@ -13,11 +13,13 @@
 # bandwidth, so it can help decode latency when memory-bound, but don't expect
 # Hopper-style throughput gains. The accuracy gate still applies.
 #
-# On the 40GB A100 instead: 70B BF16 needs tp >= 4, and the MoE in BF16 needs tp >= 2.
+# Sized for 40 GB GPUs: 70B BF16 (~140 GB) is only practical at TP=8 (TP=4 leaves
+# almost no KV cache), weight-only FP8 70B (~70 GB) fits at TP=4, and the MoE in
+# BF16 (~61 GB) needs TP >= 4. On 80 GB GPUs, add TP=2/4 rows for 70B and TP=2 for the MoE.
 name: a100x8
 
 hardware:
-  gpu: NVIDIA-A100-SXM4-80GB
+  gpu: NVIDIA-A100-SXM4-40GB
   gpus: 8
   interconnect: nvswitch
   usd_per_gpu_hour: 1.79     # placeholder: set to your provider's price / 8
@@ -55,21 +57,21 @@ deployments:
     tp: 1
     spec_decode: {method: ngram, num_tokens: 4}
 
-  # 70B in BF16 (~140 GB of weights): the tensor-parallel scaling curve.
+  # 70B in BF16 (~140 GB of weights): TP=4 is marginal on 40 GB GPUs, TP=8 comfortable.
   - model: meta-llama/Llama-3.1-70B-Instruct
     engine: vllm
     precision: bf16
-    tp: [2, 4, 8]
+    tp: [4, 8]
   - model: meta-llama/Llama-3.1-70B-Instruct
     engine: sglang
     precision: bf16
-    tp: [4, 8]
+    tp: 8
 
   # 70B weight-only FP8 (~70 GB): fewer GPUs for the same model. Cheaper at the SLO?
   - model: meta-llama/Llama-3.1-70B-Instruct
     engine: [vllm, sglang]
     precision: fp8
-    tp: [2, 4]
+    tp: [4, 8]
 
   # Pipeline vs tensor parallel at 8 GPUs.
   - model: meta-llama/Llama-3.1-70B-Instruct
@@ -82,5 +84,5 @@ deployments:
   - model: Qwen/Qwen3-30B-A3B
     engine: [vllm, sglang]
     precision: bf16
-    tp: [2, 4]
+    tp: [4, 8]
     ep: [false, true]

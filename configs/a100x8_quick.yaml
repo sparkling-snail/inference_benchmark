@@ -7,11 +7,11 @@
 #   - goodput edge within ~20% instead of ~10% (rel_tol 0.2, 30 s probes)
 #   - GSM8K on 250 examples only: standard error ~2.5 points, so FP8 verdicts
 #     will carry "noisy"; it shows the gate working, not a precise quality number
-#   - no SGLang, no MoE, no 70B FP8, no PP
+#   - no SGLang, no MoE, no PP
 name: a100x8_quick
 
 hardware:
-  gpu: NVIDIA-A100-SXM4-80GB
+  gpu: NVIDIA-A100-SXM4-40GB
   gpus: 8
   interconnect: nvswitch
   usd_per_gpu_hour: 1.79     # placeholder: set to your provider's price / 8
@@ -50,8 +50,14 @@ deployments:
     tp: 1
     spec_decode: {method: ngram, num_tokens: 4}
 
-  # 70B BF16: TP 4 vs TP 8 over NVSwitch. Is doubling the GPUs worth it?
+  # 70B on 40 GB A100s: BF16 (~140 GB of weights) needs all 8 GPUs; weight-only
+  # FP8 (~70 GB) fits on 4. Same model on half the GPUs: cheaper at the SLO,
+  # and does it pass the accuracy gate?
   - model: meta-llama/Llama-3.1-70B-Instruct
     engine: vllm
     precision: bf16
-    tp: [4, 8]
+    tp: 8
+  - model: meta-llama/Llama-3.1-70B-Instruct
+    engine: vllm
+    precision: fp8
+    tp: 4

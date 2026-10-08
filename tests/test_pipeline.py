@@ -58,7 +58,7 @@ def test_matrix_spec_decode_and_duplicate_names(tmp_path):
 
 def test_repo_matrices_load():
     assert len(load_matrix("configs/l4x4.yaml").deployments) == 30
-    assert len(load_matrix("configs/a100x8.yaml").deployments) == 27
+    assert len(load_matrix("configs/a100x8.yaml").deployments) == 25
     assert len(load_matrix("configs/a100x8_quick.yaml").deployments) == 6
     assert load_matrix("configs/smoke_quality.yaml").quality.max_drop_pts == 1.0
     load_matrix("configs/smoke.yaml")
