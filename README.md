@@ -41,8 +41,8 @@ are partly measuring.
 **SLO (interactive chat):** p99 TTFT ≤ 1 s, p99 ITL ≤ 100 ms, errors ≤ 1%.
 **Workload:** ~250–1,300 prompt tokens, 64–256 output tokens, Poisson arrivals.
 
-> **Status:** the pipeline is complete and runs end to end in CI against a
-> simulated engine ([`tests/fake_vllm_server.py`](tests/fake_vllm_server.py)).
+> **Status:** the pipeline, including the accuracy gate, is complete and runs end
+> to end in CI against a simulated engine ([`tests/fake_vllm_server.py`](tests/fake_vllm_server.py)).
 > The GPU matrix has not been run yet; results will land in
 > [`recipes/README.md`](recipes/README.md).
 
@@ -84,12 +84,38 @@ envelope:                                    # at the SLO, not at peak
   ttft_ms: {p50: …, p99: …}
   itl_ms:  {p50: …, p99: …}
   usd_per_1m_output_tokens: …
-quality:   {status: not_run}                 # accuracy gate: see roadmap
+quality:                                     # accuracy gate, vs the BF16 recipe of the same model
+  status: pass
+  baseline: qwen2.5-14b-instruct__vllm-bf16-tp2
+  tasks: {gsm8k: {score: …, stderr: …}, mmlu: {score: …, stderr: …}}
+  drop_pts: {gsm8k: …, mmlu: …}
 k8s_profile:                                 # what a scheduler needs to place it
   resources: {limits: {nvidia.com/gpu: 1}}
   nodeSelector: {nvidia.com/gpu.product: NVIDIA-L4}
 provenance: {git_commit: …, measured_at: …, gpus_seen: […]}
 ```
+
+### Accuracy gate
+
+A cheaper recipe only counts if it's still good enough. After each deployment's
+goodput search, [`lm-evaluation-harness`](https://github.com/EleutherAI/lm-evaluation-harness)
+(GSM8K and MMLU) runs against the same live server, and the scores go into the
+recipe. Once every deployment has scores, each non-BF16 recipe is compared with the
+BF16 recipe of the same model and **fails if any task drops by more than
+`max_drop_pts`**. Failing recipes are listed separately under the table and don't
+appear in the cost ranking.
+
+- Only deployments that meet the SLO are scored. Scores are cached per
+  (model, engine, precision, speculative decoding), because tensor parallelism
+  doesn't change them.
+- The gate is a separate pass from measuring, so changing the threshold doesn't
+  need another GPU session: `python -m benchmarks gate --max-drop-pts 0.5`.
+- The statistics are reported, not hidden: a verdict within 2 standard errors of
+  the noise shows `⚠ noisy` in the table. GSM8K's standard error is ~1.1 points
+  even on the full set, which is why the study uses a 2-point bar rather than 1.
+- CI exercises the whole path (launch → search → score → gate → report) with a
+  stub in `tests/stubs/lm_eval` that returns fixed scores; the real harness is
+  only used on the GPU box.
 
 ### Run it
 
@@ -104,8 +130,12 @@ pip install vllm sglang
 python -m benchmarks plan configs/l4x4.yaml                  # the 30 deployments + server commands
 python -m benchmarks run  configs/l4x4.yaml --skip-existing  # resumable; one failure doesn't stop the rest
 python -m benchmarks run  configs/l4x4.yaml --only 14b fp8   # a subset
+python -m benchmarks gate --max-drop-pts 2.0                 # re-apply the accuracy gate to stored scores
 python -m benchmarks report                                  # rebuild recipes/README.md
 ```
+
+Scoring needs `pip install lm-eval` on the GPU box; leave out the `quality:` block
+in the matrix to skip it.
 
 To benchmark a server you started yourself, use `engine: external` with a
 `base_url` in the matrix.
@@ -181,22 +211,16 @@ tests/               unit tests + fake vLLM-shaped server
 
 ## Roadmap
 
-1. **Accuracy gate.** After the goodput search, run `lm-evaluation-harness`
-   (GSM8K + an MMLU subset) against the same running server and record the score
-   in the recipe's `quality` field. An FP8 recipe fails if it scores more than ~1
-   point below the BF16 recipe for the same model, and failing recipes drop out
-   of the table. Built and tested on CPU against the engine first, so one GPU
-   rental covers performance and quality together.
-2. **GPU pilot.** The Llama-8B vLLM rows on a single-L4 `g6.xlarge`
+1. **GPU pilot.** The Llama-8B vLLM rows on a single-L4 `g6.xlarge`
    (`--only llama vllm`), to catch engine-flag drift, model-access and
    out-of-memory problems cheaply before renting four GPUs.
-3. **Full study.** All 30 deployments in [`configs/l4x4.yaml`](configs/l4x4.yaml)
+2. **Full study.** All 30 deployments in [`configs/l4x4.yaml`](configs/l4x4.yaml)
    on a `g6.12xlarge` (~12–15 GPU-hours), plus tail-latency experiments 1–3 in
    the same session.
-4. **Write-up.** The recipe table and the main findings at the top of this
+3. **Write-up.** The recipe table and the main findings at the top of this
    README, for example whether a 14B model is cheaper as FP8 on 1 GPU or BF16
    on 2, plus a short blog post.
-5. **Afterwards:**
+4. **Afterwards:**
    - **Release qualification.** A `qualify` command that re-runs a recipe after
      an engine, driver or model bump and fails if it falls outside its stored
      envelope.

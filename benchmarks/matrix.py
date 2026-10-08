@@ -92,6 +92,16 @@ class Search:
     max_probes: int = 10
 
 
+@dataclass(frozen=True)
+class Quality:
+    """Accuracy gate: lm-evaluation-harness tasks and the allowed drop vs BF16."""
+    tasks: tuple[str, ...] = ("gsm8k", "mmlu")
+    limit: int | None = 250         # examples per task; None = full set. Too small and noise swamps max_drop_pts
+    num_fewshot: dict[str, int] = field(default_factory=lambda: {"gsm8k": 5, "mmlu": 5})
+    max_drop_pts: float = 1.0       # fail a non-BF16 recipe scoring this many points below its BF16 baseline
+    num_concurrent: int = 16
+
+
 @dataclass
 class Matrix:
     name: str
@@ -100,6 +110,7 @@ class Matrix:
     workload: Workload
     search: Search
     deployments: list[Deployment] = field(default_factory=list)
+    quality: Quality | None = None  # None: skip the accuracy gate
     port: int = 8000
     results_dir: Path = Path("results/recipes")
     recipes_dir: Path = Path("recipes")
@@ -120,6 +131,9 @@ def load_matrix(path: str | Path) -> Matrix:
     if dupes:
         raise ValueError(f"duplicate deployment names (add an explicit name:): {sorted(dupes)}")
     workload = raw.get("workload", {})
+    quality = raw.get("quality")
+    if quality is not None:
+        quality = Quality(**{**quality, **({"tasks": tuple(quality["tasks"])} if "tasks" in quality else {})})
     return Matrix(
         name=raw.get("name", Path(path).stem),
         hardware=hardware,
@@ -127,6 +141,7 @@ def load_matrix(path: str | Path) -> Matrix:
         workload=Workload(**{k: tuple(v) if isinstance(v, list) else v for k, v in workload.items()}),
         search=Search(**raw.get("search", {})),
         deployments=deployments,
+        quality=quality,
         port=int(raw.get("port", 8000)),
         results_dir=Path(raw.get("results_dir", "results/recipes")),
         recipes_dir=Path(raw.get("recipes_dir", "recipes")),

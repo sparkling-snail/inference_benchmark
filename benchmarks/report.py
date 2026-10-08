@@ -24,15 +24,20 @@ def render(recipes: list[dict[str, Any]]) -> str:
         by_model[r["model"]["id"]].append(r)
 
     out = []
-    for model, rs in sorted(by_model.items()):
-        rs.sort(key=_sort_key)
-        slo = rs[0]["slo"]
+    for model, all_rs in sorted(by_model.items()):
+        rs = sorted((r for r in all_rs if _status(r) != "fail"), key=_sort_key)
+        failed = sorted((r for r in all_rs if _status(r) == "fail"), key=lambda r: r["name"])
+        slo = all_rs[0]["slo"]
         out.append(f"### {model}\n")
         out.append(f"SLO: p99 TTFT ≤ {slo['ttft_p99_ms']:g} ms, p99 ITL ≤ {slo['itl_p99_ms']:g} ms, "
                    f"errors ≤ {slo['max_error_rate']:.0%}. Sorted by cost at that SLO.\n")
         out.append(HEADER)
         out.extend(_row(r) for r in rs)
         out.append("")
+        if failed:
+            out.append("Excluded by the accuracy gate (score dropped too far below the BF16 baseline):\n")
+            out.extend(f"- {_link(r)}: {_drop_text(r)}" for r in failed)
+            out.append("")
     return "\n".join(out) + "\n"
 
 
@@ -47,11 +52,35 @@ def write_report(recipes_dir: Path, out_path: Path | None = None) -> Path:
     return out_path
 
 
-def _row(r: dict) -> str:
+def _status(r: dict) -> str:
+    return (r.get("quality") or {}).get("status", "-")
+
+
+def _link(r: dict) -> str:
     rel = recipe_relpath(r["model"]["id"], r["name"])
-    cfg = f"[{rel.stem}]({rel.as_posix()})"
+    return f"[{rel.stem}]({rel.as_posix()})"
+
+
+def _drop_text(r: dict) -> str:
+    q = r["quality"]
+    drops = ", ".join(f"{t} {-d:+.1f} pts" for t, d in q.get("drop_pts", {}).items())
+    return f"{drops} vs {q.get('baseline', 'baseline')} (limit {q.get('max_drop_pts'):g} pts)"
+
+
+def _quality_cell(r: dict) -> str:
+    q = r.get("quality") or {}
+    status = q.get("status", "-")
+    if status in ("pass", "fail") and q.get("drop_pts"):
+        change = round(-max(q["drop_pts"].values()), 1) + 0.0  # + 0.0 turns -0.0 into 0.0
+        note = " ⚠ noisy" if q.get("noise_warning") else ""
+        return f"{status} ({change:+.1f} pts{note})"
+    return status
+
+
+def _row(r: dict) -> str:
+    cfg = _link(r)
     env = r.get("envelope")
-    quality = r.get("quality", {}).get("status", "-")
+    quality = _quality_cell(r)
     if not env:
         return f"| {cfg} | {r['topology']['gpus']} | ✗ none | - | - | - | - | - | {quality} |"
     capped = "≥" if env.get("capped_at_max_rate") else ""

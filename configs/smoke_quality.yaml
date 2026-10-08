@@ -1,0 +1,17 @@
+# Full pipeline INCLUDING the accuracy gate, against the fake server and the
+# stub lm_eval in tests/stubs (CI only: the stub returns fixed scores).
+#
+#   PYTHONPATH=tests/stubs python -m benchmarks run configs/smoke_quality.yaml
+name: smoke_quality
+results_dir: results/smoke
+recipes_dir: results/smoke/recipes_quality
+port: 8792
+
+hardware: {gpu: fake, gpus: 1, usd_per_gpu_hour: 1.0}
+slo: {ttft_p99_ms: 500, itl_p99_ms: 100}
+workload: {prompt_words: [50, 400], output_tokens: [16, 64], duration_s: 4}
+search: {start_rate: 8, max_rate: 16, rel_tol: 0.5, max_probes: 2}
+quality: {tasks: [gsm8k, mmlu], limit: 100, max_drop_pts: 1.0}
+
+deployments:
+  - {model: fake-model, engine: fake, precision: [bf16, fp8]}
