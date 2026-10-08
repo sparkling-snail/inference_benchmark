@@ -1,7 +1,7 @@
 # The recipe study on one 8x NVIDIA A100 40GB SXM box (NVSwitch). 25 deployments.
 #
 #   python -m benchmarks plan configs/a100x8.yaml
-#   python -m benchmarks run  configs/a100x8.yaml --only llama-3.1-8b vllm     # pilot first
+#   python -m benchmarks run  configs/a100x8.yaml --only qwen2.5-7b vllm     # pilot first
 #   python -m benchmarks run  configs/a100x8.yaml --skip-existing
 #
 # What this box is good for: tensor-parallel scaling up to 8 GPUs over NVSwitch,
@@ -13,8 +13,8 @@
 # bandwidth, so it can help decode latency when memory-bound, but don't expect
 # Hopper-style throughput gains. The accuracy gate still applies.
 #
-# Sized for 40 GB GPUs: 70B BF16 (~140 GB) is only practical at TP=8 (TP=4 leaves
-# almost no KV cache), weight-only FP8 70B (~70 GB) fits at TP=4, and the MoE in
+# Sized for 40 GB GPUs: 72B BF16 (~145 GB) is only practical at TP=8 (TP=4 leaves
+# almost no KV cache), weight-only FP8 72B (~73 GB) fits at TP=4, and the MoE in
 # BF16 (~61 GB) needs TP >= 4. On 80 GB GPUs, add TP=2/4 rows for 70B and TP=2 for the MoE.
 name: a100x8
 
@@ -44,37 +44,37 @@ defaults:
   max_model_len: 4096
 
 deployments:
-  # 8B: fits one A100 many times over. Is TP=2 ever worth paying for?
-  - model: meta-llama/Llama-3.1-8B-Instruct
+  # 7B: fits one A100 many times over. Is TP=2 ever worth paying for?
+  - model: Qwen/Qwen2.5-7B-Instruct
     engine: [vllm, sglang]
     precision: [bf16, fp8]
     tp: [1, 2]
 
   # Speculative decoding: helps ITL at low load, can cost throughput at high load.
-  - model: meta-llama/Llama-3.1-8B-Instruct
+  - model: Qwen/Qwen2.5-7B-Instruct
     engine: vllm
     precision: bf16
     tp: 1
     spec_decode: {method: ngram, num_tokens: 4}
 
-  # 70B in BF16 (~140 GB of weights): TP=4 is marginal on 40 GB GPUs, TP=8 comfortable.
-  - model: meta-llama/Llama-3.1-70B-Instruct
+  # 72B in BF16 (~140 GB of weights): TP=4 is marginal on 40 GB GPUs, TP=8 comfortable.
+  - model: Qwen/Qwen2.5-72B-Instruct
     engine: vllm
     precision: bf16
     tp: [4, 8]
-  - model: meta-llama/Llama-3.1-70B-Instruct
+  - model: Qwen/Qwen2.5-72B-Instruct
     engine: sglang
     precision: bf16
     tp: 8
 
-  # 70B weight-only FP8 (~70 GB): fewer GPUs for the same model. Cheaper at the SLO?
-  - model: meta-llama/Llama-3.1-70B-Instruct
+  # 72B weight-only FP8 (~70 GB): fewer GPUs for the same model. Cheaper at the SLO?
+  - model: Qwen/Qwen2.5-72B-Instruct
     engine: [vllm, sglang]
     precision: fp8
     tp: [4, 8]
 
   # Pipeline vs tensor parallel at 8 GPUs.
-  - model: meta-llama/Llama-3.1-70B-Instruct
+  - model: Qwen/Qwen2.5-72B-Instruct
     engine: vllm
     precision: bf16
     tp: 4

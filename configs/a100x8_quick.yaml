@@ -35,29 +35,29 @@ defaults:
   max_model_len: 4096
 
 deployments:
-  # 8B: baseline, weight-only FP8 (gated against BF16), TP=2, speculative decoding
-  - model: meta-llama/Llama-3.1-8B-Instruct
+  # 7B: baseline, weight-only FP8 (gated against BF16), TP=2, speculative decoding
+  - model: Qwen/Qwen2.5-7B-Instruct
     engine: vllm
     precision: [bf16, fp8]
     tp: 1
-  - model: meta-llama/Llama-3.1-8B-Instruct
+  - model: Qwen/Qwen2.5-7B-Instruct
     engine: vllm
     precision: bf16
     tp: 2
-  - model: meta-llama/Llama-3.1-8B-Instruct
+  - model: Qwen/Qwen2.5-7B-Instruct
     engine: vllm
     precision: bf16
     tp: 1
     spec_decode: {method: ngram, num_tokens: 4}
 
-  # 70B on 40 GB A100s: BF16 (~140 GB of weights) needs all 8 GPUs; weight-only
-  # FP8 (~70 GB) fits on 4. Same model on half the GPUs: cheaper at the SLO,
+  # 72B on 40 GB A100s: BF16 (~145 GB of weights) needs all 8 GPUs; weight-only
+  # FP8 (~73 GB) fits on 4. Same model on half the GPUs: cheaper at the SLO,
   # and does it pass the accuracy gate?
-  - model: meta-llama/Llama-3.1-70B-Instruct
+  - model: Qwen/Qwen2.5-72B-Instruct
     engine: vllm
     precision: bf16
     tp: 8
-  - model: meta-llama/Llama-3.1-70B-Instruct
+  - model: Qwen/Qwen2.5-72B-Instruct
     engine: vllm
     precision: fp8
     tp: 4
