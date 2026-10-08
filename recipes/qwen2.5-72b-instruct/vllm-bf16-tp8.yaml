@@ -1,0 +1,92 @@
+name: qwen2.5-72b-instruct__vllm-bf16-tp8
+model:
+  id: Qwen/Qwen2.5-72B-Instruct
+runtime:
+  engine: vllm
+  engine_version: 0.31.0
+  cuda: '13.0'
+  command:
+  - vllm
+  - serve
+  - Qwen/Qwen2.5-72B-Instruct
+  - --port
+  - '8000'
+  - --tensor-parallel-size
+  - '8'
+  - --dtype
+  - bfloat16
+  - --max-model-len
+  - '4096'
+precision: bf16
+topology:
+  gpu: NVIDIA-A100-SXM4-40GB
+  gpus: 8
+  tp: 8
+  pp: 1
+  ep: false
+  interconnect: nvswitch
+spec_decode: null
+slo:
+  ttft_p99_ms: 1000
+  itl_p99_ms: 100
+  max_error_rate: 0.01
+workload:
+  prompt_words:
+  - 200
+  - 1000
+  output_tokens:
+  - 64
+  - 256
+  duration_s: 30
+  seed: 0
+envelope:
+  goodput_rps: 0.841
+  goodput_bracket_rps:
+  - 0.841
+  - 1.0
+  output_tokens_per_s: 130.4
+  output_tokens_per_s_per_gpu: 16.3
+  ttft_ms:
+    p50: 147.9
+    p99: 187.1
+  itl_ms:
+    p50: 21.2
+    p99: 96.0
+  e2e_ms:
+    p50: 4067.0
+    p99: 5987.1
+  usd_per_1m_output_tokens: null
+  capped_at_max_rate: false
+quality:
+  status: baseline
+  evaluator: lm-eval
+  limit: 250
+  tasks:
+    gsm8k:
+      score: 0.928
+      stderr: 0.016381005750490105
+      n: 250
+k8s_profile:
+  resources:
+    limits:
+      nvidia.com/gpu: 8
+  nodeSelector:
+    nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB
+  placement: single-node
+  topology: same-nvlink-domain
+  shm: required (NCCL / worker IPC over /dev/shm)
+provenance:
+  matrix: a100x8_quick
+  git_commit: 9ca71f5
+  measured_at: '2026-10-08T10:54:37Z'
+  probes: 6
+  gpus_seen:
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+status: pass

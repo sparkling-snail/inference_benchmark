@@ -213,14 +213,37 @@ def test_gate_baseline_selection_and_missing():
     assert "m__unscored" not in apply_gate([_recipe("m__unscored", "fp8", None)], 1.0)
 
 
-def test_gate_flags_noise_and_is_rerunnable():
+def test_gate_inconclusive_when_interval_straddles_threshold():
+    # se 2.5 pts each -> +-7 pts interval: a 0.5 pt drop can't be called against a 1 pt bar
     noisy = [_recipe("b", "bf16", {"gsm8k": 0.80}, se=0.025), _recipe("f", "fp8", {"gsm8k": 0.795}, se=0.025)]
-    assert apply_gate(noisy, 1.0)["f"]["noise_warning"] is True        # +-7 pts of noise can't resolve a 1 pt gate
+    assert apply_gate(noisy, 1.0)["f"]["status"] == "inconclusive"
+    # ...but a 20 pt drop is a fail even with that much noise
+    big = [_recipe("b", "bf16", {"gsm8k": 0.80}, se=0.025), _recipe("f", "fp8", {"gsm8k": 0.60}, se=0.025)]
+    assert apply_gate(big, 1.0)["f"]["status"] == "fail"
+    # tight scores: decisive, and the threshold can be changed without remeasuring
     tight = [_recipe("b", "bf16", {"gsm8k": 0.80}, se=0.001), _recipe("f", "fp8", {"gsm8k": 0.795}, se=0.001)]
-    assert "noise_warning" not in apply_gate(tight, 1.0)["f"]
-    # tightening the threshold flips the verdict without remeasuring
     assert apply_gate(tight, 1.0)["f"]["status"] == "pass"
     assert apply_gate(tight, 0.1)["f"]["status"] == "fail"
+    assert apply_gate(tight, 1.0)["f"]["ci_pts"]["gsm8k"] == pytest.approx(0.28, abs=0.01)
+
+
+def test_gate_prefers_comparable_baseline_not_highest_score():
+    """Regression: picking the best of several noisy BF16 scores biased FP8 towards failing."""
+    def rec(name, precision, score, tp, spec=None):
+        r = _recipe(name, precision, {"gsm8k": score})
+        r["topology"], r["spec_decode"] = {"tp": tp}, spec
+        return r
+    recipes = [
+        rec("m__vllm-bf16-tp1", "bf16", 0.784, tp=1),
+        rec("m__vllm-bf16-tp2", "bf16", 0.812, tp=2),
+        rec("m__vllm-bf16-tp1-spec", "bf16", 0.900, tp=1, spec={"method": "ngram"}),
+        rec("m__vllm-fp8-tp1", "fp8", 0.760, tp=1),
+        rec("m__vllm-fp8-tp2", "fp8", 0.800, tp=2),
+    ]
+    u = apply_gate(recipes, 2.0)
+    assert u["m__vllm-fp8-tp1"]["baseline"] == "m__vllm-bf16-tp1"   # same TP, no spec decode
+    assert u["m__vllm-fp8-tp1"]["drop_pts"]["gsm8k"] == pytest.approx(2.4)
+    assert u["m__vllm-fp8-tp2"]["baseline"] == "m__vllm-bf16-tp2"
 
 
 def test_gate_recipes_dir_roundtrip_and_report(tmp_path):

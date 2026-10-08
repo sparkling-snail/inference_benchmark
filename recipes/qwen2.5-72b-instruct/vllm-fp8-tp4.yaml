@@ -1,0 +1,100 @@
+name: qwen2.5-72b-instruct__vllm-fp8-tp4
+model:
+  id: Qwen/Qwen2.5-72B-Instruct
+runtime:
+  engine: vllm
+  engine_version: 0.31.0
+  cuda: '13.0'
+  command:
+  - vllm
+  - serve
+  - Qwen/Qwen2.5-72B-Instruct
+  - --port
+  - '8000'
+  - --tensor-parallel-size
+  - '4'
+  - --dtype
+  - bfloat16
+  - --quantization
+  - fp8
+  - --max-model-len
+  - '4096'
+precision: fp8
+topology:
+  gpu: NVIDIA-A100-SXM4-40GB
+  gpus: 4
+  tp: 4
+  pp: 1
+  ep: false
+  interconnect: nvswitch
+spec_decode: null
+slo:
+  ttft_p99_ms: 1000
+  itl_p99_ms: 100
+  max_error_rate: 0.01
+workload:
+  prompt_words:
+  - 200
+  - 1000
+  output_tokens:
+  - 64
+  - 256
+  duration_s: 30
+  seed: 0
+envelope:
+  goodput_rps: 0.354
+  goodput_bracket_rps:
+  - 0.354
+  - 0.5
+  output_tokens_per_s: 50.6
+  output_tokens_per_s_per_gpu: 12.7
+  ttft_ms:
+    p50: 311.1
+    p99: 394.7
+  itl_ms:
+    p50: 20.2
+    p99: 22.0
+  e2e_ms:
+    p50: 3635.5
+    p99: 5665.8
+  usd_per_1m_output_tokens: null
+  capped_at_max_rate: false
+quality:
+  status: inconclusive
+  evaluator: lm-eval
+  limit: 250
+  tasks:
+    gsm8k:
+      score: 0.932
+      stderr: 0.015953748410747023
+      n: 250
+  baseline: qwen2.5-72b-instruct__vllm-bf16-tp8
+  drop_pts:
+    gsm8k: -0.4
+  ci_pts:
+    gsm8k: 4.57
+  max_drop_pts: 2.0
+k8s_profile:
+  resources:
+    limits:
+      nvidia.com/gpu: 4
+  nodeSelector:
+    nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB
+  placement: single-node
+  topology: same-nvlink-domain
+  shm: required (NCCL / worker IPC over /dev/shm)
+provenance:
+  matrix: a100x8_quick
+  git_commit: 9ca71f5
+  measured_at: '2026-10-08T11:03:44Z'
+  probes: 6
+  gpus_seen:
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+status: pass

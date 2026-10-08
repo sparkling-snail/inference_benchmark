@@ -1,0 +1,97 @@
+Traceback (most recent call last):
+  File "/home/ubuntu/inference_benchmark/benchmarks/__main__.py", line 89, in cmd_run
+    await run_one(m, dep, cache)
+  File "/home/ubuntu/inference_benchmark/benchmarks/__main__.py", line 62, in run_one
+    quality = await measure_quality(server.base_url, model, m.quality, raw_dir / "logs" / f"{dep.name}.quality.log")
+RuntimeError: lm_eval failed on gsm8k (is it installed? pip install lm-eval); see results/recipes/a100x8_quick/logs/qwen2.5-7b-instruct__vllm-bf16-tp1.quality.log
+
+=== qwen2.5-7b-instruct__vllm-bf16-tp1 (1 GPU)
+     4.00 req/s | TTFT p99    149.3 ms | ITL p99     61.1 ms |     620 tok/s | PASS
+     8.00 req/s | TTFT p99    230.9 ms | ITL p99     90.4 ms |    1175 tok/s | PASS
+    16.00 req/s | TTFT p99   1685.1 ms | ITL p99    174.6 ms |    2157 tok/s | fail (ttft_p99, itl_p99)
+    11.31 req/s | TTFT p99    265.4 ms | ITL p99    107.9 ms |    1510 tok/s | fail (itl_p99)
+     9.51 req/s | TTFT p99    289.4 ms | ITL p99     98.6 ms |    1286 tok/s | PASS
+  quality: gsm8k (limit 250)
+  !! qwen2.5-7b-instruct__vllm-bf16-tp1 failed: lm_eval failed on gsm8k (is it installed? pip install lm-eval); see results/recipes/a100x8_quick/logs/qwen2.5-7b-instruct__vllm-bf16-tp1.quality.log
+
+=== qwen2.5-7b-instruct__vllm-fp8-tp1 (1 GPU)
+     4.00 req/s | TTFT p99    204.0 ms | ITL p99     67.0 ms |     637 tok/s | PASS
+     8.00 req/s | TTFT p99    354.9 ms | ITL p99    120.5 ms |    1213 tok/s | fail (itl_p99)
+     5.66 req/s | TTFT p99    220.9 ms | ITL p99     74.2 ms |     839 tok/s | PASS
+     6.73 req/s | TTFT p99    259.0 ms | ITL p99     82.3 ms |     939 tok/s | PASS
+  quality: gsm8k (limit 250)
+  -> recipes/qwen2.5-7b-instruct/vllm-fp8-tp1.yaml: goodput 6.727 req/s, $0.5293/1M tok
+
+=== qwen2.5-7b-instruct__vllm-bf16-tp2 (2 GPU)
+     4.00 req/s | TTFT p99    103.2 ms | ITL p99     32.7 ms |     637 tok/s | PASS
+     8.00 req/s | TTFT p99    129.6 ms | ITL p99     41.8 ms |    1217 tok/s | PASS
+    16.00 req/s | TTFT p99    171.9 ms | ITL p99     62.1 ms |    2461 tok/s | PASS
+    32.00 req/s | TTFT p99   7743.9 ms | ITL p99    129.2 ms |    3622 tok/s | fail (ttft_p99, itl_p99)
+    22.63 req/s | TTFT p99    933.1 ms | ITL p99     89.9 ms |    3332 tok/s | PASS
+    26.91 req/s | TTFT p99   2291.4 ms | ITL p99    114.5 ms |    3702 tok/s | fail (ttft_p99, itl_p99)
+  quality: gsm8k (limit 250)
+  -> recipes/qwen2.5-7b-instruct/vllm-bf16-tp2.yaml: goodput 22.627 req/s, $0.2985/1M tok
+
+=== qwen2.5-7b-instruct__vllm-bf16-tp1-spec-ngram (1 GPU)
+     4.00 req/s | TTFT p99    144.1 ms | ITL p99     71.1 ms |     654 tok/s | PASS
+     8.00 req/s | TTFT p99    227.1 ms | ITL p99     99.5 ms |    1148 tok/s | PASS
+    16.00 req/s | TTFT p99   1033.0 ms | ITL p99    206.6 ms |    2256 tok/s | fail (ttft_p99, itl_p99)
+    11.31 req/s | TTFT p99    265.7 ms | ITL p99    126.3 ms |    1503 tok/s | fail (itl_p99)
+     9.51 req/s | TTFT p99    362.2 ms | ITL p99    125.7 ms |    1340 tok/s | fail (itl_p99)
+  quality: gsm8k (limit 250)
+  -> recipes/qwen2.5-7b-instruct/vllm-bf16-tp1-spec-ngram.yaml: goodput 8 req/s, $0.4332/1M tok
+
+=== qwen2.5-72b-instruct__vllm-bf16-tp8 (8 GPU)
+     4.00 req/s | TTFT p99    371.6 ms | ITL p99    139.8 ms |     575 tok/s | fail (itl_p99)
+     2.00 req/s | TTFT p99    228.1 ms | ITL p99    115.7 ms |     244 tok/s | fail (itl_p99)
+     1.00 req/s | TTFT p99    309.7 ms | ITL p99    102.2 ms |     132 tok/s | fail (itl_p99)
+     0.50 req/s | TTFT p99    168.0 ms | ITL p99     73.4 ms |      97 tok/s | PASS
+     0.71 req/s | TTFT p99    282.8 ms | ITL p99     53.7 ms |      86 tok/s | PASS
+     0.84 req/s | TTFT p99    187.1 ms | ITL p99     96.0 ms |     130 tok/s | PASS
+  quality: gsm8k (limit 250)
+  -> recipes/qwen2.5-72b-instruct/vllm-bf16-tp8.yaml: goodput 0.841 req/s, $30.5015/1M tok
+
+=== qwen2.5-72b-instruct__vllm-fp8-tp4 (4 GPU)
+     4.00 req/s | TTFT p99   1840.9 ms | ITL p99    571.6 ms |     525 tok/s | fail (ttft_p99, itl_p99)
+     2.00 req/s | TTFT p99    787.9 ms | ITL p99    254.7 ms |     244 tok/s | fail (itl_p99)
+     1.00 req/s | TTFT p99    713.3 ms | ITL p99    239.5 ms |     131 tok/s | fail (itl_p99)
+     0.50 req/s | TTFT p99    306.8 ms | ITL p99    146.0 ms |      97 tok/s | fail (itl_p99)
+     0.25 req/s | TTFT p99    555.1 ms | ITL p99     21.6 ms |      24 tok/s | PASS
+     0.35 req/s | TTFT p99    394.7 ms | ITL p99     22.0 ms |      51 tok/s | PASS
+  quality: gsm8k (limit 250)
+  -> recipes/qwen2.5-72b-instruct/vllm-fp8-tp4.yaml: goodput 0.354 req/s, $39.2775/1M tok
+
+quality gate:
+  baseline     qwen2.5-72b-instruct__vllm-bf16-tp8
+  pass         qwen2.5-72b-instruct__vllm-fp8-tp4
+  baseline     qwen2.5-7b-instruct__vllm-bf16-tp1-spec-ngram
+  baseline     qwen2.5-7b-instruct__vllm-bf16-tp2
+  fail         qwen2.5-7b-instruct__vllm-fp8-tp1
+
+5/6 deployments done. Table: recipes/README.md
+failed:
+  qwen2.5-7b-instruct__vllm-bf16-tp1
+
+=== qwen2.5-7b-instruct__vllm-bf16-tp1 (1 GPU)
+     4.00 req/s | TTFT p99    144.0 ms | ITL p99     58.5 ms |     620 tok/s | PASS
+     8.00 req/s | TTFT p99    242.5 ms | ITL p99     88.5 ms |    1175 tok/s | PASS
+    16.00 req/s | TTFT p99   1770.9 ms | ITL p99    174.7 ms |    2155 tok/s | fail (ttft_p99, itl_p99)
+    11.31 req/s | TTFT p99    263.0 ms | ITL p99    104.7 ms |    1510 tok/s | fail (itl_p99)
+     9.51 req/s | TTFT p99    301.6 ms | ITL p99     96.8 ms |    1286 tok/s | PASS
+  quality: gsm8k (limit 250)
+  -> recipes/qwen2.5-7b-instruct/vllm-bf16-tp1.yaml: goodput 9.514 req/s, $0.3866/1M tok
+skip qwen2.5-7b-instruct__vllm-fp8-tp1 (recipe exists)
+skip qwen2.5-7b-instruct__vllm-bf16-tp2 (recipe exists)
+skip qwen2.5-7b-instruct__vllm-bf16-tp1-spec-ngram (recipe exists)
+skip qwen2.5-72b-instruct__vllm-bf16-tp8 (recipe exists)
+skip qwen2.5-72b-instruct__vllm-fp8-tp4 (recipe exists)
+
+quality gate:
+  baseline     qwen2.5-72b-instruct__vllm-bf16-tp8
+  pass         qwen2.5-72b-instruct__vllm-fp8-tp4
+  baseline     qwen2.5-7b-instruct__vllm-bf16-tp1
+  baseline     qwen2.5-7b-instruct__vllm-bf16-tp1-spec-ngram
+  baseline     qwen2.5-7b-instruct__vllm-bf16-tp2
+  fail         qwen2.5-7b-instruct__vllm-fp8-tp1
+
+6/6 deployments done. Table: recipes/README.md

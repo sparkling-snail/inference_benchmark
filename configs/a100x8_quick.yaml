@@ -6,7 +6,7 @@
 # Trade-offs vs the full matrix, stated in the write-up:
 #   - goodput edge within ~20% instead of ~10% (rel_tol 0.2, 30 s probes)
 #   - GSM8K on 250 examples only: standard error ~2.5 points, so FP8 verdicts
-#     will carry "noisy"; it shows the gate working, not a precise quality number
+#     will usually be "inconclusive": it shows the gate working, not a precise quality number
 #   - no SGLang, no MoE, no PP
 name: a100x8_quick
 

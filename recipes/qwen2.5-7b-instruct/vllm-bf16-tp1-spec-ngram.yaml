@@ -1,0 +1,95 @@
+name: qwen2.5-7b-instruct__vllm-bf16-tp1-spec-ngram
+model:
+  id: Qwen/Qwen2.5-7B-Instruct
+runtime:
+  engine: vllm
+  engine_version: 0.31.0
+  cuda: '13.0'
+  command:
+  - vllm
+  - serve
+  - Qwen/Qwen2.5-7B-Instruct
+  - --port
+  - '8000'
+  - --tensor-parallel-size
+  - '1'
+  - --dtype
+  - bfloat16
+  - --max-model-len
+  - '4096'
+  - --speculative-config
+  - '{"method": "ngram", "num_speculative_tokens": 4, "prompt_lookup_max": 4}'
+precision: bf16
+topology:
+  gpu: NVIDIA-A100-SXM4-40GB
+  gpus: 1
+  tp: 1
+  pp: 1
+  ep: false
+  interconnect: nvswitch
+spec_decode:
+  method: ngram
+  num_tokens: 4
+  draft_model: null
+slo:
+  ttft_p99_ms: 1000
+  itl_p99_ms: 100
+  max_error_rate: 0.01
+workload:
+  prompt_words:
+  - 200
+  - 1000
+  output_tokens:
+  - 64
+  - 256
+  duration_s: 30
+  seed: 0
+envelope:
+  goodput_rps: 8
+  goodput_bracket_rps:
+  - 8
+  - 9.514
+  output_tokens_per_s: 1147.9
+  output_tokens_per_s_per_gpu: 1147.9
+  ttft_ms:
+    p50: 92.5
+    p99: 227.1
+  itl_ms:
+    p50: 21.8
+    p99: 99.5
+  e2e_ms:
+    p50: 1171.8
+    p99: 5409.1
+  usd_per_1m_output_tokens: null
+  capped_at_max_rate: false
+quality:
+  status: baseline
+  evaluator: lm-eval
+  limit: 250
+  tasks:
+    gsm8k:
+      score: 0.776
+      stderr: 0.026421361687347905
+      n: 250
+k8s_profile:
+  resources:
+    limits:
+      nvidia.com/gpu: 1
+  nodeSelector:
+    nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB
+  placement: single-node
+provenance:
+  matrix: a100x8_quick
+  git_commit: 9ca71f5
+  measured_at: '2026-10-08T10:46:30Z'
+  probes: 5
+  gpus_seen:
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+  - NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08
+status: pass

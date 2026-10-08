@@ -29,8 +29,10 @@ def render(recipes: list[dict[str, Any]]) -> str:
         failed = sorted((r for r in all_rs if _status(r) == "fail"), key=lambda r: r["name"])
         slo = all_rs[0]["slo"]
         out.append(f"### {model}\n")
+        priced = any((r.get("envelope") or {}).get("usd_per_1m_output_tokens") is not None for r in rs)
+        order = "cost at that SLO" if priced else "output tokens/s per GPU at that SLO (no prices recorded)"
         out.append(f"SLO: p99 TTFT ≤ {slo['ttft_p99_ms']:g} ms, p99 ITL ≤ {slo['itl_p99_ms']:g} ms, "
-                   f"errors ≤ {slo['max_error_rate']:.0%}. Sorted by cost at that SLO.\n")
+                   f"errors ≤ {slo['max_error_rate']:.0%}. Sorted by {order}.\n")
         out.append(HEADER)
         out.extend(_row(r) for r in rs)
         out.append("")
@@ -70,10 +72,11 @@ def _drop_text(r: dict) -> str:
 def _quality_cell(r: dict) -> str:
     q = r.get("quality") or {}
     status = q.get("status", "-")
-    if status in ("pass", "fail") and q.get("drop_pts"):
-        change = round(-max(q["drop_pts"].values()), 1) + 0.0  # + 0.0 turns -0.0 into 0.0
-        note = " ⚠ noisy" if q.get("noise_warning") else ""
-        return f"{status} ({change:+.1f} pts{note})"
+    if status in ("pass", "fail", "inconclusive") and q.get("drop_pts"):
+        task = max(q["drop_pts"], key=q["drop_pts"].get)  # the worst task
+        change = round(-q["drop_pts"][task], 1) + 0.0  # + 0.0 turns -0.0 into 0.0
+        ci = (q.get("ci_pts") or {}).get(task)
+        return f"{status} ({change:+.1f}" + (f" ± {ci:.1f}" if ci else "") + " pts)"
     return status
 
 
@@ -92,9 +95,10 @@ def _row(r: dict) -> str:
 
 
 def _sort_key(r: dict):
+    """Cheapest first; without prices, highest throughput per GPU (cost-proportional) first."""
     env = r.get("envelope") or {}
     cost = env.get("usd_per_1m_output_tokens")
-    return (cost is None, cost or 0.0, r["name"])
+    return (cost is None, cost or 0.0, -(env.get("output_tokens_per_s_per_gpu") or 0.0), r["name"])
 
 
 def _fmt(x: float | None, digits: int = 1) -> str:

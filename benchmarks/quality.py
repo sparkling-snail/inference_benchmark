@@ -118,22 +118,24 @@ class QualityCache:
 
 def apply_gate(recipes: list[dict[str, Any]], max_drop_pts: float) -> dict[str, dict[str, Any]]:
     """
-    Decide pass/fail for every recipe that has scores. Pure: returns
+    Decide a verdict for every recipe that has scores. Pure: returns
     {recipe name: new quality dict}, only for recipes whose status changes.
 
     - A BF16/FP16 recipe is a baseline: status "baseline".
-    - Anything else is compared with the BF16 recipe of the same model
-      (same engine preferred, otherwise the highest-scoring one) and fails if
-      any task drops by more than max_drop_pts percentage points.
+    - Anything else is compared with the most comparable BF16 recipe of the
+      same model (see _pick_baseline), task by task, using a ~95% interval of
+      +-2 combined standard errors around the measured drop:
+        fail          drop > max_drop_pts + 2se on some task
+        pass          drop < max_drop_pts - 2se on every task
+        inconclusive  otherwise: the interval straddles the threshold, so the
+                      sample is too small to decide; raise `limit` or rerun
     - No baseline in the set: "no_baseline" (not a pass).
-    - noise_warning: the drop is within 2 standard errors of the combined
-      noise, so a pass/fail at this threshold isn't statistically meaningful;
-      raise `limit` or rerun on the full task.
     """
     scored = [r for r in recipes if _tasks(r)]
     updates: dict[str, dict[str, Any]] = {}
     for r in scored:
-        q = {k: v for k, v in r["quality"].items() if k not in ("baseline", "drop_pts", "max_drop_pts", "noise_warning")}
+        q = {k: v for k, v in r["quality"].items()
+             if k not in ("baseline", "drop_pts", "ci_pts", "max_drop_pts", "noise_warning")}
         if r["precision"] in BASELINE_PRECISIONS:
             q["status"] = "baseline"
             updates[r["name"]] = q
@@ -143,22 +145,22 @@ def apply_gate(recipes: list[dict[str, Any]], max_drop_pts: float) -> dict[str, 
             q["status"] = "no_baseline"
             updates[r["name"]] = q
             continue
-        drops, noisy = {}, False
+        drops, cis, verdicts = {}, {}, []
         for task, cur in _tasks(r).items():
             ref = _tasks(base).get(task)
             if ref is None:
                 continue
-            drops[task] = round((ref["score"] - cur["score"]) * 100, 2)
-            se = math.hypot(cur.get("stderr") or 0.0, ref.get("stderr") or 0.0) * 100
-            noisy = noisy or 2 * se > max_drop_pts
-        q.update(
-            status="fail" if any(d > max_drop_pts for d in drops.values()) else "pass",
-            baseline=base["name"],
-            drop_pts=drops,
-            max_drop_pts=max_drop_pts,
-        )
-        if noisy:
-            q["noise_warning"] = True
+            drop = (ref["score"] - cur["score"]) * 100
+            ci = 2 * math.hypot(cur.get("stderr") or 0.0, ref.get("stderr") or 0.0) * 100
+            drops[task], cis[task] = round(drop, 2), round(ci, 2)
+            if drop > max_drop_pts + ci:
+                verdicts.append("fail")
+            elif drop < max_drop_pts - ci:
+                verdicts.append("pass")
+            else:
+                verdicts.append("inconclusive")
+        status = "fail" if "fail" in verdicts else "inconclusive" if "inconclusive" in verdicts else "pass"
+        q.update(status=status, baseline=base["name"], drop_pts=drops, ci_pts=cis, max_drop_pts=max_drop_pts)
         updates[r["name"]] = q
     return updates
 
@@ -180,9 +182,22 @@ def _tasks(r: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def _pick_baseline(r: dict[str, Any], scored: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """
+    The most comparable BF16 recipe: same model, then by closeness (same engine,
+    no speculative decoding, same TP), name as a stable tie-break.
+
+    Never "the highest-scoring baseline": with several noisy BF16 scores, picking
+    the max biases every comparison towards failing.
+    """
     bases = [b for b in scored if b["model"]["id"] == r["model"]["id"] and b["precision"] in BASELINE_PRECISIONS]
     if not bases:
         return None
-    same_engine = [b for b in bases if b["runtime"]["engine"] == r["runtime"]["engine"]]
-    pool = same_engine or bases
-    return max(pool, key=lambda b: sum(t["score"] for t in _tasks(b).values()))
+    tp = (r.get("topology") or {}).get("tp")
+
+    def distance(b: dict[str, Any]) -> tuple:
+        return (b["runtime"]["engine"] != r["runtime"]["engine"],
+                bool(b.get("spec_decode")) != bool(r.get("spec_decode")),
+                (b.get("topology") or {}).get("tp") != tp,
+                b["name"])
+
+    return min(bases, key=distance)

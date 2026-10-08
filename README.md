@@ -12,6 +12,27 @@ understand what the serving runtimes do internally.**
 | **Serving engine** | Static batching → KV cache → batched KV cache with mid-batch admit/evict → continuous-batching scheduler with pluggable admission policies, each verified token-for-token against Hugging Face. Served over the same OpenAI-compatible API as vLLM. | [`engine/`](engine/) |
 | **Tail-latency study** | Four experiments that each isolate one source of p99: queueing, prefill/decode interference, KV-cache preemption, head-of-line blocking. | [`experiments/tail/`](experiments/tail/) |
 
+## First results: 8× A100 40GB, vLLM, Qwen2.5 7B and 72B
+
+A one-hour run of six deployments, each measured as goodput at p99 TTFT ≤ 1 s
+and p99 inter-token latency (ITL) ≤ 100 ms. Full write-up:
+**[docs/findings-a100x8.md](docs/findings-a100x8.md)**. Recipe table:
+[recipes/](recipes/README.md).
+
+- **The inter-token latency tail sets the limit.** p99 ITL ran 5–7× the median
+  and capped goodput in 5 of 6 deployments, while TTFT had room. For 72B, the
+  100 ms ITL target cut usable throughput about 4× compared with a 140 ms one,
+  more than any configuration change did.
+- **7B: TP 2 beat TP 1 per GPU** (2.4× the goodput on 2× the GPUs). Faster
+  decode steps plus 2.7× the KV cache outweighed the all-reduce cost.
+- **Weight-only FP8 on A100 bought memory, not efficiency.** Median ITL improved
+  ~40% on 7B, but the tail got worse and goodput per GPU fell 22–29%. 72B fit
+  on 4 GPUs instead of 8, at lower output per GPU.
+- **250 GSM8K examples can't resolve a 2-point quality bar.** Three BF16 runs
+  of the same weights spread over 3.6 points, so both FP8 verdicts are reported
+  as inconclusive. This also exposed a baseline-selection bug in the gate, since
+  fixed.
+
 ---
 
 ## Inference recipes
@@ -41,10 +62,11 @@ are partly measuring.
 **SLO (interactive chat):** p99 TTFT ≤ 1 s, p99 ITL ≤ 100 ms, errors ≤ 1%.
 **Workload:** ~250–1,300 prompt tokens, 64–256 output tokens, Poisson arrivals.
 
-> **Status:** the pipeline, including the accuracy gate, is complete and runs end
-> to end in CI against a simulated engine ([`tests/fake_vllm_server.py`](tests/fake_vllm_server.py)).
-> The GPU matrix has not been run yet; results will land in
-> [`recipes/README.md`](recipes/README.md).
+> **Status:** the pipeline, including the accuracy gate, runs end to end in CI
+> against a simulated engine ([`tests/fake_vllm_server.py`](tests/fake_vllm_server.py)).
+> The first GPU run used a one-hour cut of the matrix on 8× A100 instead of this
+> L4 box; see [First results](#first-results-8-a100-40gb-vllm-qwen25-7b-and-72b).
+> The full L4 matrix hasn't been run yet.
 
 ### How a deployment is measured
 
@@ -84,8 +106,8 @@ envelope:                                    # at the SLO, not at peak
   ttft_ms: {p50: …, p99: …}
   itl_ms:  {p50: …, p99: …}
   usd_per_1m_output_tokens: …
-quality:                                     # accuracy gate, vs the BF16 recipe of the same model
-  status: pass
+quality:                                     # accuracy gate, vs the most similar BF16 recipe
+  status: pass                               # pass | fail | inconclusive
   baseline: qwen2.5-14b-instruct__vllm-bf16-tp2
   tasks: {gsm8k: {score: …, stderr: …}, mmlu: {score: …, stderr: …}}
   drop_pts: {gsm8k: …, mmlu: …}
@@ -101,18 +123,23 @@ A cheaper recipe only counts if it's still good enough. After each deployment's
 goodput search, [`lm-evaluation-harness`](https://github.com/EleutherAI/lm-evaluation-harness)
 (GSM8K and MMLU) runs against the same live server, and the scores go into the
 recipe. Once every deployment has scores, each non-BF16 recipe is compared with the
-BF16 recipe of the same model and **fails if any task drops by more than
-`max_drop_pts`**. Failing recipes are listed separately under the table and don't
-appear in the cost ranking.
+most similar BF16 recipe of the same model (same engine, same TP, no speculative
+decoding). It **fails if any task drops by more than `max_drop_pts`**, passes if
+every task stays clearly within it, and is **inconclusive** when the ±2
+standard-error interval around the drop straddles the threshold. Failing recipes
+are listed separately under the table and don't appear in the ranking.
 
 - Only deployments that meet the SLO are scored. Scores are cached per
-  (model, engine, precision, speculative decoding), because tensor parallelism
-  doesn't change them.
+  (model, engine, precision, speculative decoding) within a run, because tensor
+  parallelism shouldn't change them beyond noise.
 - The gate is a separate pass from measuring, so changing the threshold doesn't
   need another GPU session: `python -m benchmarks gate --max-drop-pts 0.5`.
-- The statistics are reported, not hidden: a verdict within 2 standard errors of
-  the noise shows `⚠ noisy` in the table. GSM8K's standard error is ~1.1 points
-  even on the full set, which is why the study uses a 2-point bar rather than 1.
+- The statistics are reported, not hidden: the table shows each drop with its
+  ±2-standard-error interval. GSM8K's standard error is ~1.1 points even on the
+  full set, which is why the study uses a 2-point bar rather than 1.
+- The baseline is never "the best-scoring BF16 run". With several noisy BF16
+  scores, picking the maximum biases every comparison towards failing; the first
+  A100 run caught exactly that.
 - CI exercises the whole path (launch → search → score → gate → report) with a
   stub in `tests/stubs/lm_eval` that returns fixed scores; the real harness is
   only used on the GPU box.

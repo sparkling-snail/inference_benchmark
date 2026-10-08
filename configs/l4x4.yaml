@@ -31,7 +31,7 @@ search: {start_rate: 1, max_rate: 64, rel_tol: 0.1, max_probes: 8}
 # (model, engine, precision, spec decode), since tensor parallelism doesn't change them.
 # Full datasets (no limit) and a 2-point bar: GSM8K's standard error is ~1.1 points,
 # so a 1-point gate can't be resolved statistically. Verdicts that are still within
-# the noise get "⚠ noisy" in the table instead of a silent pass.
+# the noise are reported as "inconclusive" instead of a silent pass or fail.
 quality:
   tasks: [gsm8k, mmlu]
   limit: null

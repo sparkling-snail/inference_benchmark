@@ -1,0 +1,376 @@
+{
+  "deployment": {
+    "model": "Qwen/Qwen2.5-72B-Instruct",
+    "engine": "vllm",
+    "precision": "bf16",
+    "tp": 8,
+    "pp": 1,
+    "ep": false,
+    "spec_decode": null,
+    "max_model_len": 4096,
+    "extra_args": [],
+    "base_url": null,
+    "name": "qwen2.5-72b-instruct__vllm-bf16-tp8"
+  },
+  "environment": {
+    "gpus": [
+      "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+      "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+      "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+      "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+      "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+      "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+      "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+      "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08"
+    ],
+    "topology": "\u001b[4mGPU0\tGPU1\tGPU2\tGPU3\tGPU4\tGPU5\tGPU6\tGPU7\tNIC0\tCPU Affinity\tNUMA Affinity\tGPU NUMA ID\u001b[0m\nGPU0\t X \tNV12\tNV12\tNV12\tNV12\tNV12\tNV12\tNV12\tPHB\t0-123\t0-1\t\tN/A\nGPU1\tNV12\t X \tNV12\tNV12\tNV12\tNV12\tNV12\tNV12\tPHB\t0-123\t0-1\t\tN/A\nGPU2\tNV12\tNV12\t X \tNV12\tNV12\tNV12\tNV12\tNV12\tPHB\t0-123\t0-1\t\tN/A\nGPU3\tNV12\tNV12\tNV12\t X \tNV12\tNV12\tNV12\tNV12\tPHB\t0-123\t0-1\t\tN/A\nGPU4\tNV12\tNV12\tNV12\tNV12\t X \tNV12\tNV12\tNV12\tPHB\t0-123\t0-1\t\tN/A\nGPU5\tNV12\tNV12\tNV12\tNV12\tNV12\t X \tNV12\tNV12\tPHB\t0-123\t0-1\t\tN/A\nGPU6\tNV12\tNV12\tNV12\tNV12\tNV12\tNV12\t X \tNV12\tPHB\t0-123\t0-1\t\tN/A\nGPU7\tNV12\tNV12\tNV12\tNV12\tNV12\tNV12\tNV12\t X \tPHB\t0-123\t0-1\t\tN/A\nNIC0\tPHB\tPHB\tPHB\tPHB\tPHB\tPHB\tPHB\tPHB\t X \t\t\t\t\n\nLegend:\n\n  X    = Self\n  SYS  = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)\n  NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node\n  PHB  = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)\n  PXB  = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)\n  PIX  = Connection traversing at most a single PCIe bridge\n  NV#  = Connection traversing a bonded set of # NVLinks\n\nNIC Legend:\n\n  NIC0: mlx5_0",
+    "cuda": "13.0",
+    "engine_version": "0.31.0"
+  },
+  "probes": [
+    {
+      "offered_rate": 4,
+      "passed": false,
+      "n": 120,
+      "errors": 0,
+      "achieved_rate": 3.476985172775715,
+      "output_tokens_per_s": 574.5428249247472,
+      "ttft": {
+        "n": 120,
+        "mean": 0.18386106283336023,
+        "p50": 0.17218882199995278,
+        "p90": 0.27610773370006425,
+        "p99": 0.3715925762999223,
+        "max": 0.38465505899966956,
+        "p99_over_p50": 2.158052839806432
+      },
+      "itl": {
+        "n": 19709,
+        "mean": 0.03343957593870816,
+        "p50": 0.02466349699989223,
+        "p90": 0.05307016599990675,
+        "p99": 0.13975898672006223,
+        "max": 0.23683571299989126,
+        "p99_over_p50": 5.666633029398585
+      },
+      "e2e": {
+        "n": 120,
+        "mean": 5.676032747633353,
+        "p50": 5.900478991499995,
+        "p90": 8.229788443899816,
+        "p99": 9.376227370129932,
+        "max": 9.778365953000048,
+        "p99_over_p50": 1.5890620716787516
+      },
+      "preemptions": 1080.0,
+      "failed_on": [
+        "itl_p99"
+      ]
+    },
+    {
+      "offered_rate": 2.0,
+      "passed": false,
+      "n": 60,
+      "errors": 0,
+      "achieved_rate": 1.3825925586004963,
+      "output_tokens_per_s": 243.56672240678745,
+      "ttft": {
+        "n": 60,
+        "mean": 0.15060695959997852,
+        "p50": 0.15015912450007818,
+        "p90": 0.19702119749995292,
+        "p99": 0.22806010685008002,
+        "max": 0.23432365600001503,
+        "p99_over_p50": 1.5187895348308407
+      },
+      "itl": {
+        "n": 10510,
+        "mean": 0.025585624068030523,
+        "p50": 0.022897187500120708,
+        "p90": 0.024403363800274747,
+        "p99": 0.11570853416002591,
+        "max": 0.18873161200008326,
+        "p99_over_p50": 5.053395058210356
+      },
+      "e2e": {
+        "n": 60,
+        "mean": 4.632355442183325,
+        "p50": 4.589837815500005,
+        "p90": 6.090689343999747,
+        "p99": 6.715263841920049,
+        "max": 6.800998636999793,
+        "p99_over_p50": 1.4630721415128056
+      },
+      "preemptions": 540.0,
+      "failed_on": [
+        "itl_p99"
+      ]
+    },
+    {
+      "offered_rate": 1.0,
+      "passed": false,
+      "n": 30,
+      "errors": 0,
+      "achieved_rate": 0.8486097507767132,
+      "output_tokens_per_s": 132.12853819593423,
+      "ttft": {
+        "n": 30,
+        "mean": 0.15737453499993231,
+        "p50": 0.1485386130000279,
+        "p90": 0.21247293119995453,
+        "p99": 0.30971546393999233,
+        "max": 0.3134027020000758,
+        "p99_over_p50": 2.0850838558721034
+      },
+      "itl": {
+        "n": 4641,
+        "mean": 0.023090699824391197,
+        "p50": 0.021362611000313336,
+        "p90": 0.02336239599981127,
+        "p99": 0.10222318099995392,
+        "max": 0.1917556409998724,
+        "p99_over_p50": 4.78514452182154
+      },
+      "e2e": {
+        "n": 30,
+        "mean": 3.72950579783325,
+        "p50": 3.649874900999748,
+        "p90": 5.486238508899897,
+        "p99": 6.07722697375983,
+        "max": 6.107866649999778,
+        "p99_over_p50": 1.6650507588890782
+      },
+      "preemptions": 270.0,
+      "failed_on": [
+        "itl_p99"
+      ]
+    },
+    {
+      "offered_rate": 0.5,
+      "passed": true,
+      "n": 15,
+      "errors": 0,
+      "achieved_rate": 0.7057370509150837,
+      "output_tokens_per_s": 97.01531993246016,
+      "ttft": {
+        "n": 15,
+        "mean": 0.11570620233327039,
+        "p50": 0.11736560099961935,
+        "p90": 0.14915444039997966,
+        "p99": 0.16799951064002014,
+        "max": 0.17092279799999233,
+        "p99_over_p50": 1.4314203583430294
+      },
+      "itl": {
+        "n": 2047,
+        "mean": 0.02207418518954544,
+        "p50": 0.020986402000289672,
+        "p90": 0.022955471399836825,
+        "p99": 0.07340861146017233,
+        "max": 0.1190879590003533,
+        "p99_over_p50": 3.4979131467680395
+      },
+      "e2e": {
+        "n": 15,
+        "mean": 3.1280966745332384,
+        "p50": 3.0901447769997503,
+        "p90": 4.305294936799965,
+        "p99": 5.378310445259712,
+        "max": 5.547079498999665,
+        "p99_over_p50": 1.7404719951281902
+      },
+      "preemptions": 135.0,
+      "failed_on": []
+    },
+    {
+      "offered_rate": 0.7071067811865476,
+      "passed": true,
+      "n": 21,
+      "errors": 0,
+      "achieved_rate": 0.5784262115711238,
+      "output_tokens_per_s": 85.71725573377798,
+      "ttft": {
+        "n": 21,
+        "mean": 0.14436996204754646,
+        "p50": 0.15585174499983623,
+        "p90": 0.1865360930000861,
+        "p99": 0.2828344012001253,
+        "max": 0.29461161400013225,
+        "p99_over_p50": 1.8147657005728266
+      },
+      "itl": {
+        "n": 3091,
+        "mean": 0.021639290256551626,
+        "p50": 0.020620962000066356,
+        "p90": 0.022651613000107318,
+        "p99": 0.05373139149974122,
+        "max": 0.1364705490000233,
+        "p99_over_p50": 2.605668518256729
+      },
+      "e2e": {
+        "n": 21,
+        "mean": 3.329467399333312,
+        "p50": 3.3686084860000847,
+        "p90": 4.9639460690000305,
+        "p99": 5.759624122999958,
+        "max": 5.878614881999965,
+        "p99_over_p50": 1.7097932712979023
+      },
+      "preemptions": 189.0,
+      "failed_on": []
+    },
+    {
+      "offered_rate": 0.8408964152537146,
+      "passed": true,
+      "n": 25,
+      "errors": 0,
+      "achieved_rate": 0.7764502352209154,
+      "output_tokens_per_s": 130.41258150770494,
+      "ttft": {
+        "n": 25,
+        "mean": 0.14842756968000687,
+        "p50": 0.14788390900002923,
+        "p90": 0.1858273305999319,
+        "p99": 0.18708716291999736,
+        "max": 0.18729355499999656,
+        "p99_over_p50": 1.2650947908062153
+      },
+      "itl": {
+        "n": 4174,
+        "mean": 0.022645144422137074,
+        "p50": 0.02117047250021642,
+        "p90": 0.023114512899974217,
+        "p99": 0.09597201741996743,
+        "max": 0.1465700310000102,
+        "p99_over_p50": 4.533295958273314
+      },
+      "e2e": {
+        "n": 25,
+        "mean": 3.929260882400013,
+        "p50": 4.067009171999871,
+        "p90": 5.739398023399917,
+        "p99": 5.9870825716001494,
+        "max": 6.005276830000184,
+        "p99_over_p50": 1.4721094343281553
+      },
+      "preemptions": 225.0,
+      "failed_on": []
+    }
+  ],
+  "recipe": {
+    "name": "qwen2.5-72b-instruct__vllm-bf16-tp8",
+    "model": {
+      "id": "Qwen/Qwen2.5-72B-Instruct"
+    },
+    "runtime": {
+      "engine": "vllm",
+      "engine_version": "0.31.0",
+      "cuda": "13.0",
+      "command": [
+        "vllm",
+        "serve",
+        "Qwen/Qwen2.5-72B-Instruct",
+        "--port",
+        "8000",
+        "--tensor-parallel-size",
+        "8",
+        "--dtype",
+        "bfloat16",
+        "--max-model-len",
+        "4096"
+      ]
+    },
+    "precision": "bf16",
+    "topology": {
+      "gpu": "NVIDIA-A100-SXM4-40GB",
+      "gpus": 8,
+      "tp": 8,
+      "pp": 1,
+      "ep": false,
+      "interconnect": "nvswitch"
+    },
+    "spec_decode": null,
+    "slo": {
+      "ttft_p99_ms": 1000,
+      "itl_p99_ms": 100,
+      "max_error_rate": 0.01
+    },
+    "workload": {
+      "prompt_words": [
+        200,
+        1000
+      ],
+      "output_tokens": [
+        64,
+        256
+      ],
+      "duration_s": 30,
+      "seed": 0
+    },
+    "envelope": {
+      "goodput_rps": 0.841,
+      "goodput_bracket_rps": [
+        0.841,
+        1.0
+      ],
+      "output_tokens_per_s": 130.4,
+      "output_tokens_per_s_per_gpu": 16.3,
+      "ttft_ms": {
+        "p50": 147.9,
+        "p99": 187.1
+      },
+      "itl_ms": {
+        "p50": 21.2,
+        "p99": 96.0
+      },
+      "e2e_ms": {
+        "p50": 4067.0,
+        "p99": 5987.1
+      },
+      "usd_per_1m_output_tokens": 30.5015,
+      "capped_at_max_rate": false
+    },
+    "quality": {
+      "status": "measured",
+      "evaluator": "lm-eval",
+      "limit": 250,
+      "tasks": {
+        "gsm8k": {
+          "score": 0.928,
+          "stderr": 0.016381005750490105,
+          "n": 250
+        }
+      }
+    },
+    "k8s_profile": {
+      "resources": {
+        "limits": {
+          "nvidia.com/gpu": 8
+        }
+      },
+      "nodeSelector": {
+        "nvidia.com/gpu.product": "NVIDIA-A100-SXM4-40GB"
+      },
+      "placement": "single-node",
+      "topology": "same-nvlink-domain",
+      "shm": "required (NCCL / worker IPC over /dev/shm)"
+    },
+    "provenance": {
+      "matrix": "a100x8_quick",
+      "git_commit": "9ca71f5",
+      "measured_at": "2026-10-08T10:54:37Z",
+      "probes": 6,
+      "gpus_seen": [
+        "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+        "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+        "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+        "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+        "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+        "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+        "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08",
+        "NVIDIA A100-SXM4-40GB, 40960 MiB, 580.105.08"
+      ]
+    },
+    "status": "pass"
+  }
+}
