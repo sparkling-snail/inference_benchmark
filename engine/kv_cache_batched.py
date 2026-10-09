@@ -180,6 +180,13 @@ def admit(model: ModelWrapper, batch: BatchedKVCache, req: Request) -> None:
     safe here because build_position_ids derives each row's position
     ids from its own attention mask row (see model_wrapper.py) -- extra
     leading padding never perturbs a row's own position numbering.
+
+    Cost, and why vLLM doesn't do it this way: every admit copies the
+    whole cache (torch.cat), and the rectangular layout wastes memory on
+    padding whenever sequence lengths differ. vLLM's PagedAttention stores
+    the KV cache in fixed-size blocks, like virtual-memory pages, with a
+    per-request block table, so a request of any length joins without
+    padding or copying, and memory is only allocated as tokens arrive.
     """
     req.prompt_token_ids = model.encode(req.prompt)
     prompt_len = len(req.prompt_token_ids) # shape (1, 3)
@@ -213,10 +220,10 @@ def admit(model: ModelWrapper, batch: BatchedKVCache, req: Request) -> None:
         batch.attention_mask = torch.cat(
             [torch.zeros((batch.batch_size, pad), dtype=torch.long), batch.attention_mask], dim=1
         )
-
+    # stack the rows, layer by layer
     merged_legacy = tuple(
-        (torch.cat([ek, nk], dim=0), torch.cat([ev, nv], dim=0))
-        for (ek, ev), (nk, nv) in zip(existing_legacy, new_legacy)
+        (torch.cat([ek, nk], dim=0), torch.cat([ev, nv], dim=0))   # stack rows (dim 0)
+        for (ek, ev), (nk, nv) in zip(existing_legacy, new_legacy) # layer 1 with layer 1, 2 with 2...
     )
     batch.past_key_values = DynamicCache(ddp_cache_data=merged_legacy)
     batch.attention_mask = torch.cat([batch.attention_mask, new_attention_mask], dim=0)
@@ -232,8 +239,8 @@ def run_batch_to_completion(model: ModelWrapper, requests: list[Request]) -> lis
     whole batch is done -- that idle cost is exactly what Checkpoint B's
     evict() removes.
     """
-    batch = start_batch(model, requests)
-    max_steps = max(req.max_new_tokens for req in requests)
+    batch = start_batch(model, requests) # prefill: everyone gets token #1
+    max_steps = max(req.max_new_tokens for req in requests)  # the longest request decides
 
     for _ in range(max_steps - 1):  # prefill already produced one token per row
         step(model, batch, model.eos_token_id)

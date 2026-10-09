@@ -188,6 +188,15 @@ misaligned position IDs for a left-padded row produces plausible but wrong text,
 and it only shows up once requests are admitted and evicted mid-batch. The
 `"Hi"` prompt in the batched-cache check is a regression test for exactly that bug.
 
+**What it deliberately does differently from vLLM:** the cache is one rectangular
+tensor per layer, so every `admit` copies the whole cache and left-pads whichever
+side is shorter. With uneven lengths, much of that memory is padding. vLLM's
+**PagedAttention** avoids both costs by storing the KV cache in fixed-size blocks,
+like virtual-memory pages, with a block table per request. Requests of any length
+join without padding or copying, and memory is allocated only as tokens are
+generated. Building the rectangular version first is what makes that design
+choice concrete.
+
 ```bash
 python -m engine.verify.kv_cache_single
 python -m engine.verify.kv_cache_batched
