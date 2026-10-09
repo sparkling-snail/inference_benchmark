@@ -30,7 +30,7 @@ MAX_NEW_TOKENS = 30
 def hf_reference_generate(model: ModelWrapper, prompt_token_ids: list[int]) -> list[int]:
     """Greedy-decodes the same prompt via HF's built-in cached generate()."""
     input_ids = torch.tensor([prompt_token_ids], dtype=torch.long).to(model.device)
-    attention_mask = torch.ones_like(input_ids)
+    attention_mask = torch.ones_like(input_ids) #creates a new tensor filled with 1s that has the same shape, dtype, and device
     with torch.no_grad():
         output = model.model.generate(
             input_ids=input_ids,

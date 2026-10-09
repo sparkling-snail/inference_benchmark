@@ -114,7 +114,6 @@ def step(model: ModelWrapper, batch: BatchedKVCache, eos_token_id: int | None) -
         if not req.is_finished(eos_token_id):
             req.record_token(next_token) #records the token in the request object
         batch.pending_tokens[row] = next_token #update the pending token for the row
-        batch.pending_tokens[row] = next_token
 
 
 def evict(batch: BatchedKVCache, finished_rows: list[int]) -> list[Request]:
