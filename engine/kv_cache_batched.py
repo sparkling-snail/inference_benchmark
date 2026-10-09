@@ -116,6 +116,15 @@ def step(model: ModelWrapper, batch: BatchedKVCache, eos_token_id: int | None) -
         batch.pending_tokens[row] = next_token #update the pending token for the row
 
 
+# When a row leaves, it must be removed from all four, in the same way.
+
+# row   requests   pending   mask          cache
+# 0     A          "the"     [0,1,1,1]     A's keys/values
+# 1     B          <EOS>     [1,1,1,1]     B's keys/values    ← finished
+# 2     C          "dog"     [0,0,1,1]     C's keys/values
+
+# evict(batch, finished_rows=[1])
+
 def evict(batch: BatchedKVCache, finished_rows: list[int]) -> list[Request]:
     """
     Drops the given row indices from every part of the batch state --
@@ -132,10 +141,10 @@ def evict(batch: BatchedKVCache, finished_rows: list[int]) -> list[Request]:
     for req in evicted:
         req.mark_finished()
 
-    batch.past_key_values.batch_select_indices(keep_idx)
-    batch.attention_mask = batch.attention_mask[keep_idx]
-    batch.requests = [batch.requests[i] for i in keep]
-    batch.pending_tokens = [batch.pending_tokens[i] for i in keep]
+    batch.past_key_values.batch_select_indices(keep_idx)  # cache: every layer keeps rows 0 and 2
+    batch.attention_mask = batch.attention_mask[keep_idx] # mask: rows 0 and 2
+    batch.requests = [batch.requests[i] for i in keep] # [A, C]
+    batch.pending_tokens = [batch.pending_tokens[i] for i in keep] # ["the", "dog"]
     return evicted
 
 
@@ -173,15 +182,15 @@ def admit(model: ModelWrapper, batch: BatchedKVCache, req: Request) -> None:
     leading padding never perturbs a row's own position numbering.
     """
     req.prompt_token_ids = model.encode(req.prompt)
-    prompt_len = len(req.prompt_token_ids)
+    prompt_len = len(req.prompt_token_ids) # shape (1, 3)
 
-    new_input_ids = torch.tensor([req.prompt_token_ids], dtype=torch.long)
-    new_attention_mask = torch.ones((1, prompt_len), dtype=torch.long)
+    new_input_ids = torch.tensor([req.prompt_token_ids], dtype=torch.long) # shape (1, 3)
+    new_attention_mask = torch.ones((1, prompt_len), dtype=torch.long) # [[1, 1, 1]], no padding
     logits, new_cache = model.forward_batch_step(new_input_ids, new_attention_mask, past_key_values=None)
     new_token = model.greedy_next_token(logits[0])
-    req.record_token(new_token)
+    req.record_token(new_token)     # its first token (TTFT moment)
 
-    target_len = max(batch.seq_len, prompt_len)
+    target_len = max(batch.seq_len, prompt_len) # whichever is longer becomes the length both sides are padded to.
     # DynamicCache.to_legacy_cache()/from_legacy_cache() were removed in
     # newer transformers releases (the per-layer tensors now live at
     # cache.layers[i].keys / .values instead) -- this reads/rebuilds the
@@ -190,12 +199,14 @@ def admit(model: ModelWrapper, batch: BatchedKVCache, req: Request) -> None:
     existing_legacy = tuple((layer.keys, layer.values) for layer in batch.past_key_values.layers)
     new_legacy = tuple((layer.keys, layer.values) for layer in new_cache.layers)
 
+    #  the new prompt is shorter (the usual case). Pad the new row:
     if prompt_len < target_len:
         pad = target_len - prompt_len
         new_legacy = _left_pad_kv(new_legacy, pad)
         new_attention_mask = torch.cat(
             [torch.zeros((1, pad), dtype=torch.long), new_attention_mask], dim=1
         )
+    #  the new prompt is longer than the batch so far. Pad every existing row:
     elif batch.seq_len < target_len:
         pad = target_len - batch.seq_len
         existing_legacy = _left_pad_kv(existing_legacy, pad)
